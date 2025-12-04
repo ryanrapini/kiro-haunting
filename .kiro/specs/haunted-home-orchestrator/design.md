@@ -2,7 +2,13 @@
 
 ## Overview
 
-The Haunted Home Orchestrator is a multi-agent AI system that transforms smart homes into immersive haunted house experiences. The architecture consists of a web-based frontend, a Node.js backend orchestrator, and specialized AI sub-agents that control different device types. The system integrates with Amazon Alexa and Google Home through their respective APIs, discovers available devices, and coordinates spooky behaviors across lights, speakers, TVs, and smart plugs.
+The Haunted Home Orchestrator is a multi-agent AI system that transforms smart homes into immersive haunted house experiences. The architecture consists of a web-based frontend, a backend orchestrator, and specialized AI sub-agents that control different device types.
+
+The system supports two modes:
+
+**Connected Mode:** Integrates with Amazon Alexa and Google Home through their respective APIs, discovers available devices automatically, and directly controls devices through API calls.
+
+**Simple Mode:** Generates voice commands as text that are spoken aloud through the browser using text-to-speech. This mode allows users to control voice-assistant-enabled devices without OAuth integration, making it ideal for environments where the user doesn't own the smart home ecosystem (e.g., hotel rooms, Airbnb).
 
 The application leverages a microservices-inspired architecture where each device type is managed by an independent AI agent with its own system prompt and decision-making logic. The orchestrator coordinates these agents to create cohesive, themed haunting experiences while respecting safety constraints and API rate limits.
 
@@ -17,16 +23,19 @@ The application leverages a microservices-inspired architecture where each devic
 │  │   Setup      │  │   Settings   │  │   Monitor    │      │
 │  │   Wizard     │  │   Panel      │  │   Dashboard  │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                              │
+│  Web Speech API (Simple Mode only)                          │
 └─────────────────────────────────────────────────────────────┘
                             │
-                            │ WebSocket + REST API
+                            │ REST API (+ WebSocket for Connected Mode)
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Backend Orchestrator (Node.js)                  │
+│              Backend Orchestrator                            │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │           Main Orchestrator Service                   │   │
 │  │  • Agent Lifecycle Management                         │   │
-│  │  • Device State Management                            │   │
+│  │  • Device State Management (Connected Mode)           │   │
+│  │  • Command Queue Management (Simple Mode)             │   │
 │  │  • Theme Configuration                                │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                              │
@@ -41,7 +50,7 @@ The application leverages a microservices-inspired architecture where each devic
 │  └──────────────┘  └──────────────┘                        │
 └─────────────────────────────────────────────────────────────┘
                             │
-                            │ Smart Home APIs
+                            │ Smart Home APIs (Connected Mode only)
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  Smart Home Platforms                        │
@@ -58,32 +67,40 @@ The application leverages a microservices-inspired architecture where each devic
 - React 18 with TypeScript
 - Vite for build tooling
 - TailwindCSS for styling with custom Halloween theme
-- Framer Motion for spooky animations
-- Socket.io-client for real-time updates
+- Framer Motion for spooky animations (optional)
+- Web Speech API for text-to-speech (Simple Mode)
+- Socket.io-client for real-time updates (Connected Mode)
 
 **Backend:**
-- Node.js 20+ with TypeScript
-- Express.js for REST API
-- Socket.io for WebSocket communication
+- AWS Lambda (Node.js 20+) for serverless functions
+- AWS API Gateway for REST API
+- AWS Cognito for user authentication
 - OpenAI API for AI agent intelligence
-- OAuth 2.0 libraries for smart home authentication
+- OAuth 2.0 libraries for smart home authentication (Connected Mode)
 
-**Smart Home Integration:**
+**Smart Home Integration (Connected Mode only):**
 - Amazon Alexa Smart Home Skill API
 - Google Home Device Access API
 - Alexa Skills Kit for voice commands
 
 **Data Storage:**
-- SQLite for local configuration persistence
-- In-memory state management for active haunting sessions
+- AWS DynamoDB for user data, devices, and sessions
+- In-memory state management for active haunting sessions (Connected Mode)
+
+**Infrastructure:**
+- AWS S3 + CloudFront for frontend hosting
+- AWS Route 53 for domain management
+- AWS Certificate Manager for HTTPS
 
 ## Components and Interfaces
 
 ### 1. Web Interface (Frontend)
 
 **Setup Wizard Component**
-- Handles OAuth flow for Alexa and Google Home
-- Displays discovered devices with category grouping
+- Platform selection (Alexa or Google Home)
+- Mode selection (Simple or Connected)
+- **Connected Mode:** Handles OAuth flow and displays discovered devices
+- **Simple Mode:** Conversational chat interface for manual device setup
 - Provides device selection interface with checkboxes
 - Validates configuration before proceeding
 
@@ -103,16 +120,34 @@ The application leverages a microservices-inspired architecture where each devic
 ```typescript
 interface APIClient {
   // Authentication
+  register(email: string, password: string): Promise<void>;
+  login(email: string, password: string): Promise<AuthTokens>;
+  
+  // Configuration
+  saveConfig(platform: 'alexa' | 'google', mode: 'simple' | 'connected'): Promise<void>;
+  getConfig(): Promise<UserConfig>;
+  
+  // Connected Mode - OAuth
   initiateOAuth(platform: 'alexa' | 'google'): Promise<OAuthURL>;
   completeOAuth(code: string, platform: string): Promise<void>;
   
-  // Device Management
+  // Connected Mode - Device Discovery
   discoverDevices(): Promise<Device[]>;
+  
+  // Simple Mode - Manual Device Setup
+  chatWithDeviceAgent(message: string): Promise<ChatResponse>;
+  
+  // Device Management (Both Modes)
+  getDevices(): Promise<Device[]>;
   updateDeviceSelection(deviceIds: string[]): Promise<void>;
+  deleteDevice(deviceId: string): Promise<void>;
   
   // Haunting Control
   startHaunting(): Promise<void>;
   stopHaunting(): Promise<void>;
+  
+  // Simple Mode - Command Retrieval
+  getNextCommand(): Promise<VoiceCommand | null>;
   
   // Configuration
   getThemes(): Promise<Theme[]>;
@@ -175,35 +210,38 @@ interface SubAgent {
   devices: Device[];
   theme: Theme;
   epilepsySafeMode: boolean;
+  mode: 'simple' | 'connected';
+  platform: 'alexa' | 'google';
   
   initialize(): Promise<void>;
-  executeAction(): Promise<AgentAction>;
+  executeAction(): Promise<AgentAction | VoiceCommand>;
   terminate(): Promise<void>;
   updateSystemPrompt(prompt: string): void;
 }
 ```
 
 **Lights Sub-Agent**
-- Controls brightness (0-100%)
-- Manages color (RGB or temperature)
+- **Connected Mode:** Controls brightness (0-100%), color (RGB), on/off states via API
+- **Simple Mode:** Generates voice commands like "Alexa, set bedroom lamp to red"
 - Creates flickering effects
 - Implements gradual transitions
 - Respects epilepsy-safe mode (max 2 Hz changes)
 
 **Audio Sub-Agent**
-- Plays sound effects from library
-- Controls volume levels
+- **Connected Mode:** Plays sound effects, controls volume via API
+- **Simple Mode:** Generates voice commands like "Alexa, play spooky sounds on living room speaker"
 - Creates spatial audio effects (if supported)
 - Manages playback timing and duration
 
 **Television Sub-Agent**
-- Displays static/creepy images
-- Controls input switching
-- Manages screen brightness
+- **Connected Mode:** Controls input, displays content via API
+- **Simple Mode:** Generates voice commands like "Alexa, turn on living room TV"
+- Displays static/creepy images (Connected Mode)
 - Respects epilepsy-safe mode (no rapid flashing)
 
 **Smart Plug Sub-Agent**
-- Controls on/off states
+- **Connected Mode:** Controls on/off states via API
+- **Simple Mode:** Generates voice commands like "Alexa, turn off bedroom fan"
 - Implements random timing patterns
 - Avoids rapid cycling (device protection)
 - Coordinates with other agents for effect timing
@@ -246,12 +284,22 @@ enum DeviceType {
 
 interface Device {
   id: string;
-  name: string;
+  userId: string;
+  name: string; // Informal name, e.g., "bedroom lamp"
+  formalName: string; // How user refers to it with voice assistant
   type: DeviceType;
   platform: 'alexa' | 'google';
-  capabilities: DeviceCapability[];
+  mode: 'simple' | 'connected';
+  
+  // Connected Mode only
+  capabilities?: DeviceCapability[];
+  currentState?: DeviceState;
+  
+  // Simple Mode only
+  commandExamples?: string[]; // e.g., ["turn on bedroom lamp", "set bedroom lamp to red"]
+  
   enabled: boolean;
-  currentState: DeviceState;
+  createdAt: string;
 }
 
 interface DeviceCapability {
@@ -275,6 +323,17 @@ interface RGB {
   g: number; // 0-255
   b: number; // 0-255
 }
+
+// Simple Mode specific
+interface VoiceCommand {
+  commandId: string;
+  agentType: DeviceType;
+  deviceName: string;
+  commandText: string; // e.g., "Alexa, turn bedroom lamp to red"
+  timestamp: string;
+  spoken: boolean;
+  reasoning?: string; // Optional AI reasoning for debugging
+}
 ```
 
 ### Configuration Models
@@ -288,12 +347,20 @@ interface Theme {
   intensity: 'subtle' | 'moderate' | 'intense';
 }
 
-interface SystemConfiguration {
+interface UserConfig {
+  userId: string;
+  platform: 'alexa' | 'google';
+  mode: 'simple' | 'connected';
   selectedDevices: string[];
   activeTheme: string;
   epilepsySafeMode: boolean;
   customPrompts: Map<DeviceType, string>;
-  platforms: PlatformConfig[];
+  
+  // Connected Mode only
+  platformConfig?: PlatformConfig;
+  
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface PlatformConfig {
@@ -301,6 +368,19 @@ interface PlatformConfig {
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
+}
+
+// Simple Mode specific
+interface HauntingSession {
+  userId: string;
+  sessionId: string;
+  isActive: boolean;
+  mode: 'simple' | 'connected';
+  startedAt: string;
+  stoppedAt?: string;
+  
+  // Simple Mode only
+  commandQueue?: VoiceCommand[];
 }
 ```
 
