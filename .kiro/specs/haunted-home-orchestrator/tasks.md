@@ -4,7 +4,7 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
 
 ## Tasks
 
-- [-] 1. Set up AWS infrastructure and project foundation
+- [x] 1. Set up AWS infrastructure and project foundation
   - Create AWS account and configure CLI credentials
   - Set up DynamoDB tables (UserConfig, Devices, HauntingSessions)
   - Configure AWS Cognito User Pool for authentication
@@ -14,11 +14,11 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - _Requirements: MVP infrastructure setup_
 
 - [ ] 2. Implement backend authentication system
-  - Create Lambda function for user registration
-  - Create Lambda function for user login
-  - Set up API Gateway with Cognito authorizer
-  - Configure CORS for API Gateway
-  - Test authentication flow with Postman
+  - Create Lambda function for user registration (POST /auth/register)
+  - Create Lambda function for user login (POST /auth/login)
+  - Implement Cognito SDK integration for user creation and authentication
+  - Return JWT tokens on successful login
+  - Add error handling for invalid credentials and existing users
   - _Requirements: 1.1, 1.3_
 
 - [ ]* 2.1 Write property test for credential storage
@@ -26,12 +26,13 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - **Validates: Requirements 1.3**
 
 - [ ] 3. Build frontend authentication UI
-  - Create React app with Vite and TypeScript
-  - Implement login page component
-  - Implement registration page component
-  - Add form validation
-  - Connect to backend auth APIs
-  - Add loading states and error handling
+  - Create LoginPage component with email/password fields
+  - Create RegisterPage component with email/password fields
+  - Add client-side form validation (email format, password requirements)
+  - Create API client service for authentication endpoints
+  - Implement authentication state management (store JWT tokens)
+  - Add loading states and error message display
+  - Add navigation between login and register pages
   - _Requirements: 1.1, 1.3, 1.4_
 
 - [ ]* 3.1 Write unit tests for form validation
@@ -40,11 +41,12 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - Test error message display
   - _Requirements: 1.1, 1.4_
 
-- [ ] 4. Implement user configuration management
-  - Create Lambda function to save user config (platform, mode)
-  - Create Lambda function to retrieve user config
-  - Add DynamoDB operations for UserConfig table
-  - Test config persistence
+- [ ] 4. Implement user configuration management backend
+  - Create Lambda function to save user config (POST /config)
+  - Create Lambda function to retrieve user config (GET /config)
+  - Implement DynamoDB operations for UserConfig table
+  - Store platform (alexa/google) and mode (simple only for MVP)
+  - Add error handling for missing or invalid configurations
   - _Requirements: 1.1, 1.2_
 
 - [ ]* 4.1 Write property test for configuration persistence
@@ -52,20 +54,23 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - **Validates: Requirements 3.3**
 
 - [ ] 5. Build platform and mode selection UI
-  - Create setup wizard component
-  - Add platform selector (Alexa/Google radio buttons)
-  - Add mode selector (Simple/Connected, Simple only for MVP)
-  - Save selections to backend
-  - Add navigation to device setup
+  - Create SetupWizardPage component
+  - Add platform selector with radio buttons (Alexa/Google)
+  - Add mode display showing "Simple Mode" (Connected mode disabled for MVP)
+  - Save platform selection to backend via API
+  - Add "Continue to Device Setup" button
+  - Implement navigation to device setup page
   - _Requirements: 1.1, 1.2, 1.5_
 
-- [ ] 6. Implement device setup AI agent
-  - Create OpenAI integration utility
-  - Write device setup agent system prompt
-  - Create Lambda function for device chat endpoint
-  - Implement conversation state management
-  - Parse agent responses for device creation
-  - Save devices to DynamoDB when agent confirms readiness
+- [ ] 6. Implement device setup AI agent backend
+  - Create OpenAI integration utility module
+  - Write device setup agent system prompt (conversational device collection)
+  - Create Lambda function for device chat endpoint (POST /devices/chat)
+  - Implement conversation state management (pass history in request)
+  - Parse agent responses for DEVICE_READY signals
+  - Extract device details (type, name, formalName, commandExamples) from agent response
+  - Save devices to DynamoDB Devices table when agent confirms readiness
+  - Return chat response and created device to frontend
   - _Requirements: 2.6_
 
 - [ ]* 6.1 Write property test for device categorization
@@ -73,12 +78,14 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - **Validates: Requirements 2.2**
 
 - [ ] 7. Build device setup chat interface
-  - Create chat UI component with message history
-  - Add input field for user messages
-  - Display agent responses
-  - Show device list as devices are added
-  - Add delete device functionality
-  - Show "Start Haunting" button when ≥1 device exists
+  - Create DeviceSetupPage component with chat UI
+  - Add message history display (user and agent messages)
+  - Add text input field for user messages
+  - Implement send message functionality calling /devices/chat endpoint
+  - Display device list showing all added devices with type icons
+  - Add delete button for each device (calls DELETE /devices/:deviceId)
+  - Show "Start Haunting" button when at least 1 device exists
+  - Add loading indicator while agent is responding
   - _Requirements: 2.6, 3.1, 3.2, 3.3, 3.4_
 
 - [ ]* 7.1 Write unit tests for chat UI
@@ -87,21 +94,23 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - Test delete functionality
   - _Requirements: 3.1, 3.2_
 
-- [ ] 8. Implement sub-agent system prompts
-  - Write Lights Sub-Agent prompt for Simple Mode
-  - Write Audio Sub-Agent prompt for Simple Mode
-  - Write TV Sub-Agent prompt for Simple Mode
-  - Write Smart Plug Sub-Agent prompt for Simple Mode
-  - Store prompts in configuration
+- [ ] 8. Create sub-agent system prompts
+  - Write Lights Sub-Agent prompt for Simple Mode (generates voice commands for lights)
+  - Write Audio Sub-Agent prompt for Simple Mode (generates voice commands for speakers)
+  - Write TV Sub-Agent prompt for Simple Mode (generates voice commands for TVs)
+  - Write Smart Plug Sub-Agent prompt for Simple Mode (generates voice commands for plugs)
+  - Store prompts as constants in backend code
+  - Include platform-specific command format (Alexa vs Google)
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 9. Create haunting orchestrator Lambda
-  - Implement haunting session creation
-  - Group devices by type
-  - Call OpenAI API for each device type with sub-agent prompt
-  - Parse AI responses to extract voice commands
+  - Create Lambda function for agent orchestration (invoked by start haunting)
+  - Implement haunting session creation in DynamoDB
+  - Group user's devices by device type
+  - For each device type with devices, call OpenAI API with corresponding sub-agent prompt
+  - Parse AI responses to extract voice commands (JSON array)
   - Build command queue with randomized order
-  - Store session and commands in DynamoDB
+  - Store session with command queue in DynamoDB HauntingSessions table
   - _Requirements: 5.1, 5.2, 5.3_
 
 - [ ]* 9.1 Write property test for sub-agent spawning
@@ -113,11 +122,14 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - **Validates: Requirements 5.2**
 
 - [ ] 10. Implement haunting control endpoints
-  - Create Lambda function for start haunting
-  - Create Lambda function for stop haunting
-  - Create Lambda function for get next command
-  - Mark commands as spoken when retrieved
-  - Trigger command regeneration when queue is low
+  - Create Lambda function for start haunting (POST /haunting/start)
+  - Invoke orchestrator Lambda to generate initial commands
+  - Create Lambda function for stop haunting (POST /haunting/stop)
+  - Mark session as inactive and clear command queue
+  - Create Lambda function for get next command (GET /haunting/command)
+  - Return next unspoken command from queue
+  - Mark command as spoken in DynamoDB
+  - Trigger command regeneration when queue has fewer than 5 commands
   - _Requirements: 4.3, 5.5, 11.2_
 
 - [ ]* 10.1 Write property test for duplicate trigger handling
@@ -129,13 +141,15 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
   - **Validates: Requirements 11.2**
 
 - [ ] 11. Build haunting control UI
-  - Create haunting control page component
-  - Add "Stop Haunting" button
-  - Implement command polling (every 2-5 seconds with random delay)
+  - Create HauntingControlPage component
+  - Add "Stop Haunting" button with prominent styling
+  - Implement command polling (GET /haunting/command every 2-5 seconds with random delay)
   - Integrate Web Speech API for text-to-speech
-  - Display last spoken command
-  - Add visual indicator for active haunting
-  - Handle stop haunting action
+  - Speak command text aloud when received
+  - Display last spoken command on screen
+  - Add visual indicator showing haunting is active (animated ghost icon)
+  - Handle stop haunting action (call POST /haunting/stop)
+  - Navigate back to device setup after stopping
   - _Requirements: 10.1, 10.2, 11.1, 11.2_
 
 - [ ]* 11.1 Write unit tests for command polling
@@ -147,71 +161,74 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
 - [ ] 12. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Add Halloween theming to UI
-  - Create TailwindCSS theme with dark colors, orange and purple accents
-  - Add spooky fonts (e.g., Creepster, Nosifer from Google Fonts)
-  - Add ghost icons and haunted house imagery
-  - Style all pages with Halloween theme
-  - Add subtle animations (optional, using Framer Motion)
+- [x] 13. Add Halloween theming to UI
+  - TailwindCSS theme with dark colors, orange and purple accents already configured
+  - Spooky fonts can be added via Google Fonts if needed
+  - Add ghost icons and haunted house imagery to components
+  - Apply Halloween theme to all pages
   - Ensure readability and usability
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
 
 - [ ] 14. Implement error handling and edge cases
-  - Add error handling for failed API calls
-  - Handle empty device lists
-  - Handle authentication errors with retry
-  - Add loading states throughout UI
-  - Handle text-to-speech failures gracefully
-  - Display user-friendly error messages
+  - Add try-catch blocks and error responses in all Lambda functions
+  - Handle empty device lists in frontend (show helpful message)
+  - Handle authentication errors with retry option in UI
+  - Add loading states to all async operations in UI
+  - Handle text-to-speech failures gracefully (log error, continue to next command)
+  - Display user-friendly error messages throughout UI
   - _Requirements: 1.4, 2.5_
 
 - [ ]* 14.1 Write property test for authentication error handling
   - **Property 3: Authentication error handling**
   - **Validates: Requirements 1.4**
 
-- [ ] 15. Set up frontend hosting on AWS
-  - Create S3 bucket for static hosting
-  - Configure bucket for website hosting
-  - Create CloudFront distribution
-  - Configure custom domain with Route 53
-  - Set up SSL certificate
-  - Configure error pages for SPA routing
+- [ ] 15. Update CDK stack for production deployment
+  - Uncomment CloudFront distribution configuration
+  - Uncomment Route 53 records for kiro-haunting.me
+  - Uncomment certificate configuration
+  - Replace placeholder Lambda with actual Lambda functions from backend/
+  - Configure Lambda function code from backend/dist/
+  - Add separate Lambda functions for each endpoint
+  - Update API Gateway to use actual Lambda functions
   - _Requirements: MVP infrastructure_
 
 - [ ] 16. Deploy backend to AWS
-  - Package Lambda functions
-  - Deploy Lambda functions to AWS
-  - Configure environment variables (Cognito IDs, OpenAI API key)
-  - Set up IAM roles and permissions
-  - Deploy API Gateway
-  - Configure custom domain for API (api.kiro-haunting.me)
-  - Test all endpoints in production
+  - Build backend TypeScript code (npm run build)
+  - Package Lambda functions with dependencies
+  - Store OpenAI API key in SSM Parameter Store
+  - Deploy CDK stack (cdk deploy)
+  - Verify all Lambda functions are deployed
+  - Test all API endpoints using CDK outputs
   - _Requirements: MVP infrastructure_
 
 - [ ] 17. Deploy frontend to AWS
-  - Build React app for production
-  - Upload build to S3 bucket
+  - Create .env file with CDK output values (API endpoint, Cognito IDs)
+  - Build React app for production (npm run build)
+  - Upload build artifacts to S3 bucket
   - Invalidate CloudFront cache
   - Test application at kiro-haunting.me
   - Verify HTTPS works correctly
+  - Test complete user flow in production
   - _Requirements: MVP infrastructure_
 
-- [ ] 18. End-to-end testing with real devices
+- [ ] 18. End-to-end manual testing
   - Test complete user flow from registration to haunting
   - Test with actual Alexa or Google Home devices
-  - Verify voice commands are spoken clearly
-  - Verify devices respond to spoken commands
-  - Test with multiple device types
+  - Verify voice commands are spoken clearly by browser
+  - Verify devices respond correctly to spoken commands
+  - Test with multiple device types (lights, speakers, TV, plugs)
   - Verify random delays work as expected
+  - Test error scenarios (no devices, network failures)
   - _Requirements: All requirements_
 
 - [ ] 19. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 20. Documentation and polish
-  - Write README with setup instructions
-  - Document environment variables needed
-  - Add inline code comments
-  - Create demo video (3 minutes)
+  - Update README with complete setup instructions
+  - Document all environment variables needed
+  - Add inline code comments to complex logic
+  - Create demo video (3 minutes) showing full flow
   - Write Kiro usage documentation for hackathon submission
+  - Document known limitations and future enhancements
   - _Requirements: Hackathon submission requirements_
