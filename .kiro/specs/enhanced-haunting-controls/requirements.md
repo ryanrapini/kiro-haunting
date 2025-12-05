@@ -15,6 +15,8 @@ The Enhanced Haunting Controls feature extends the existing Haunted Home Orchest
 - **Device Tile**: A large visual representation of a device in the haunting interface that shows real-time status and activity
 - **Ghost Indicator**: An animated visual element that appears when a device is being acted upon, showing the action being performed
 - **Speech Bubble**: A UI element that displays the specific action or command being sent to a device
+- **Custom Device Prompt**: A user-editable text prompt that defines how a specific device should behave during haunting
+- **Default Device Prompt**: An automatically generated prompt based on device type that defines standard spooky behaviors
 
 ## Requirements
 
@@ -127,6 +129,21 @@ The Enhanced Haunting Controls feature extends the existing Haunted Home Orchest
 5. WHERE frequency settings exist THEN the Orchestrator SHALL preserve these settings during system updates
 
 ### Requirement 10
+
+**User Story:** As a user, I want to customize the prompts that control how each device behaves, so that I can fine-tune the spooky actions for my specific devices and preferences.
+
+#### Acceptance Criteria
+
+1. WHEN a light device is first added THEN the Orchestrator SHALL generate a default prompt to set dim lighting with Halloween colors (purple, orange, candlelight whites)
+2. WHEN a speaker device is first added THEN the Orchestrator SHALL generate a default prompt to play spooky sounds (crow caws, screams, ghost noises, wind, "Spooky Scary Skeletons")
+3. WHEN a television device is first added THEN the Orchestrator SHALL generate a default prompt to find and play "haunted house atmosphere" videos from YouTube
+4. WHEN an on/off device is first added THEN the Orchestrator SHALL generate a default prompt to randomly turn the device on or off
+5. WHEN viewing device settings THEN the Web Interface SHALL display the current custom prompt for that device in an editable text area
+6. WHEN a user modifies a device prompt THEN the Web Interface SHALL save the custom prompt and associate it with that specific device
+7. WHEN the Orchestrator acts on a device THEN the Sub-Agent SHALL use the device's custom prompt instead of the generic type-based prompt
+8. WHERE no custom prompt exists THEN the Sub-Agent SHALL use the default generated prompt for that device type
+
+### Requirement 11
 
 **User Story:** As a user, I want the scene setup phase to be visually distinct from random triggers, so that I can understand what phase of haunting is currently active.
 
