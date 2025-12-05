@@ -6,7 +6,7 @@ import {
   QueryCommand,
   DeleteCommand
 } from '@aws-sdk/lib-dynamodb';
-import { Device, DeviceType } from '../models/types';
+import { Device, DeviceType, FrequencyLevel, DEFAULT_PROMPTS, FREQUENCY_WEIGHTS } from '../models/types';
 import { randomUUID } from 'crypto';
 
 // Initialize DynamoDB client
@@ -32,6 +32,8 @@ export async function saveDevice(
   const now = new Date().toISOString();
   const deviceId = randomUUID();
   
+  const defaultPrompt = generateDefaultPrompt(deviceData.type);
+  
   const device: Device = {
     id: deviceId,
     userId,
@@ -42,6 +44,10 @@ export async function saveDevice(
     mode: deviceData.mode,
     commandExamples: deviceData.commandExamples || [],
     enabled: true,
+    frequency: FrequencyLevel.NORMAL,
+    defaultPrompt,
+    selectionWeight: calculateSelectionWeight(FrequencyLevel.NORMAL),
+    actionCount: 0,
     createdAt: now,
   };
 
@@ -110,4 +116,88 @@ export async function deleteDevice(userId: string, deviceId: string): Promise<vo
       },
     })
   );
+}
+
+/**
+ * Generate default prompt for a device type
+ */
+export function generateDefaultPrompt(deviceType: DeviceType): string {
+  return DEFAULT_PROMPTS[deviceType] || DEFAULT_PROMPTS[DeviceType.UNKNOWN];
+}
+
+/**
+ * Update device settings (frequency and custom prompt)
+ */
+export async function updateDeviceSettings(
+  userId: string,
+  deviceId: string,
+  settings: {
+    frequency?: FrequencyLevel;
+    customPrompt?: string;
+  }
+): Promise<Device | null> {
+  const device = await getDevice(userId, deviceId);
+  if (!device) {
+    return null;
+  }
+
+  const updates: Partial<Device> = {};
+  
+  if (settings.frequency !== undefined) {
+    updates.frequency = settings.frequency;
+    updates.selectionWeight = calculateSelectionWeight(settings.frequency);
+  }
+  
+  if (settings.customPrompt !== undefined) {
+    updates.customPrompt = settings.customPrompt;
+  }
+
+  const updatedDevice = { ...device, ...updates };
+
+  await docClient.send(
+    new PutCommand({
+      TableName: DEVICES_TABLE,
+      Item: {
+        ...updatedDevice,
+        deviceId: deviceId,
+      },
+    })
+  );
+
+  return updatedDevice;
+}
+
+/**
+ * Toggle device enabled/disabled state
+ */
+export async function toggleDevice(
+  userId: string,
+  deviceId: string,
+  enabled: boolean
+): Promise<Device | null> {
+  const device = await getDevice(userId, deviceId);
+  if (!device) {
+    return null;
+  }
+
+  const updatedDevice = { ...device, enabled };
+
+  await docClient.send(
+    new PutCommand({
+      TableName: DEVICES_TABLE,
+      Item: {
+        ...updatedDevice,
+        deviceId: deviceId,
+      },
+    })
+  );
+
+  return updatedDevice;
+}
+
+/**
+ * Calculate selection weight based on frequency level
+ */
+export function calculateSelectionWeight(frequency: FrequencyLevel): number {
+  return FREQUENCY_WEIGHTS[frequency];
 }
