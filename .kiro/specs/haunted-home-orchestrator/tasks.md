@@ -224,7 +224,17 @@ This implementation plan focuses on delivering Simple Mode first - a working hau
 - [ ] 19. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 20. Documentation and polish
+- [ ] 20. Migrate frontend from React to Vue 3
+  - Replace React with Vue 3 and Vite
+  - Convert all React components to Vue 3 Composition API
+  - Replace React Router with Vue Router
+  - Update TailwindCSS configuration for Vue
+  - Migrate state management to Vue composables or Pinia
+  - Update build configuration and deployment scripts
+  - Test all functionality works with Vue 3
+  - _Requirements: Technical improvement_
+
+- [ ] 21. Documentation and polish
   - Update README with complete setup instructions
   - Document all environment variables needed
   - Add inline code comments to complex logic
