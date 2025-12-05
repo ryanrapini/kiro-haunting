@@ -65,13 +65,12 @@ export class HauntedHomeStack extends cdk.Stack {
     // Cognito User Pool
     // ========================================
 
-    // Pre-Authentication Lambda to bypass email verification
-    const preAuthLambda = new lambda.Function(this, 'PreAuthFunction', {
+    // Pre-Sign-Up Lambda to auto-confirm users
+    const preSignUpLambda = new lambda.Function(this, 'PreSignUpFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
       code: lambda.Code.fromInline(`
         exports.handler = async (event) => {
-          // Auto-verify email for all users to bypass verification requirement
           event.response.autoConfirmUser = true;
           event.response.autoVerifyEmail = true;
           return event;
@@ -96,8 +95,7 @@ export class HauntedHomeStack extends cdk.Stack {
         requireSymbols: false,
       },
       lambdaTriggers: {
-        preAuthentication: preAuthLambda,
-        preSignUp: preAuthLambda,
+        preSignUp: preSignUpLambda,
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -137,32 +135,99 @@ export class HauntedHomeStack extends cdk.Stack {
     }));
 
     // ========================================
-    // Placeholder Lambda Function
+    // Lambda Functions
     // ========================================
 
-    const placeholderLambda = new lambda.Function(this, 'PlaceholderFunction', {
+    // Common environment variables for all Lambda functions
+    const lambdaEnvironment = {
+      USER_CONFIG_TABLE: userConfigTable.tableName,
+      DEVICES_TABLE: devicesTable.tableName,
+      HAUNTING_SESSIONS_TABLE: hauntingSessionsTable.tableName,
+      USER_POOL_ID: userPool.userPoolId,
+      USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+    };
+
+    // Config handlers
+    const saveConfigLambda = new lambda.Function(this, 'SaveConfigFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromInline(`
-        exports.handler = async (event) => {
-          return {
-            statusCode: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            },
-            body: JSON.stringify({ message: 'Placeholder function - replace with actual implementation' }),
-          };
-        };
-      `),
+      handler: 'index.saveConfig',
+      code: lambda.Code.fromAsset('../backend/dist'),
       role: lambdaRole,
-      environment: {
-        USER_CONFIG_TABLE: userConfigTable.tableName,
-        DEVICES_TABLE: devicesTable.tableName,
-        HAUNTING_SESSIONS_TABLE: hauntingSessionsTable.tableName,
-        USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-      },
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const getConfigLambda = new lambda.Function(this, 'GetConfigFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.getConfig',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    // Device handlers
+    const deviceChatLambda = new lambda.Function(this, 'DeviceChatFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.deviceChat',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const getDevicesLambda = new lambda.Function(this, 'GetDevicesFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.getDevices',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const deleteDeviceLambda = new lambda.Function(this, 'DeleteDeviceFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.deleteDeviceHandler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    // Haunting handlers
+    const startHauntingLambda = new lambda.Function(this, 'StartHauntingFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.startHaunting',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 1024,
+    });
+
+    const stopHauntingLambda = new lambda.Function(this, 'StopHauntingFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.stopHaunting',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const getNextCommandLambda = new lambda.Function(this, 'GetNextCommandFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.getNextCommand',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
     });
 
     // ========================================
@@ -188,39 +253,44 @@ export class HauntedHomeStack extends cdk.Stack {
     });
 
     // API Resources
-    const authResource = api.root.addResource('auth');
-    authResource.addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda));
-
     const configResource = api.root.addResource('config');
-    configResource.addMethod('GET', new apigateway.LambdaIntegration(placeholderLambda), {
+    configResource.addMethod('GET', new apigateway.LambdaIntegration(getConfigLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
-    configResource.addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda), {
+    configResource.addMethod('POST', new apigateway.LambdaIntegration(saveConfigLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
     const devicesResource = api.root.addResource('devices');
-    devicesResource.addMethod('GET', new apigateway.LambdaIntegration(placeholderLambda), {
+    devicesResource.addMethod('GET', new apigateway.LambdaIntegration(getDevicesLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
-    devicesResource.addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda), {
+    
+    const deviceChatResource = devicesResource.addResource('chat');
+    deviceChatResource.addMethod('POST', new apigateway.LambdaIntegration(deviceChatLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const deviceIdResource = devicesResource.addResource('{id}');
+    deviceIdResource.addMethod('DELETE', new apigateway.LambdaIntegration(deleteDeviceLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
     const hauntingResource = api.root.addResource('haunting');
-    hauntingResource.addResource('start').addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda), {
+    hauntingResource.addResource('start').addMethod('POST', new apigateway.LambdaIntegration(startHauntingLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
-    hauntingResource.addResource('stop').addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda), {
+    hauntingResource.addResource('stop').addMethod('POST', new apigateway.LambdaIntegration(stopHauntingLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
-    hauntingResource.addResource('command').addMethod('GET', new apigateway.LambdaIntegration(placeholderLambda), {
+    hauntingResource.addResource('command').addMethod('GET', new apigateway.LambdaIntegration(getNextCommandLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
@@ -263,13 +333,27 @@ export class HauntedHomeStack extends cdk.Stack {
 
     frontendBucket.grantRead(originAccessIdentity);
 
+    // Custom cache policy with very low TTL for fast development
+    const lowTtlCachePolicy = new cloudfront.CachePolicy(this, 'LowTtlCachePolicy', {
+      cachePolicyName: 'HauntedHome-LowTTL',
+      comment: 'Low TTL cache policy for fast development updates',
+      defaultTtl: cdk.Duration.seconds(10),
+      minTtl: cdk.Duration.seconds(0),
+      maxTtl: cdk.Duration.seconds(30),
+      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+      enableAcceptEncodingGzip: true,
+      enableAcceptEncodingBrotli: true,
+    });
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(frontendBucket, {
           originAccessIdentity,
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        cachePolicy: lowTtlCachePolicy,
       },
       domainNames: ['kiro-haunting.me'],
       certificate,
@@ -279,13 +363,13 @@ export class HauntedHomeStack extends cdk.Stack {
           httpStatus: 404,
           responseHttpStatus: 200,
           responsePagePath: '/index.html',
-          ttl: cdk.Duration.minutes(5),
+          ttl: cdk.Duration.seconds(10),
         },
         {
           httpStatus: 403,
           responseHttpStatus: 200,
           responsePagePath: '/index.html',
-          ttl: cdk.Duration.minutes(5),
+          ttl: cdk.Duration.seconds(10),
         },
       ],
     });

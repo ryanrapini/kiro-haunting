@@ -107,6 +107,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
+import api from '../services/api'
 
 const router = useRouter()
 
@@ -118,6 +119,7 @@ interface CommandHistoryItem {
 const currentCommand = ref('')
 const commandHistory = ref<CommandHistoryItem[]>([])
 const isMuted = ref(false)
+const sessionActive = ref(false)
 let pollInterval: number | null = null
 let speechSynthesis: SpeechSynthesis | null = null
 
@@ -134,32 +136,35 @@ const speakCommand = (text: string) => {
 
 const getNextCommand = async () => {
   try {
-    // TODO: Call API endpoint
-    // Simulate command for now
-    const commands = [
-      'Alexa, turn bedroom lamp to red',
-      'Alexa, dim living room lights to 20 percent',
-      'Alexa, play spooky sounds on kitchen speaker',
-      'Alexa, turn off bedroom fan',
-      'Alexa, set living room lamp to purple'
-    ]
+    const response = await api.haunting.getNextCommand()
     
-    const command = commands[Math.floor(Math.random() * commands.length)]
-    currentCommand.value = command
-    
-    commandHistory.value.unshift({
-      text: command,
-      time: new Date().toLocaleTimeString()
-    })
-    
-    // Keep only last 10 commands
-    if (commandHistory.value.length > 10) {
-      commandHistory.value = commandHistory.value.slice(0, 10)
+    if (response.command) {
+      const commandText = response.command.commandText
+      currentCommand.value = commandText
+      
+      commandHistory.value.unshift({
+        text: commandText,
+        time: new Date().toLocaleTimeString()
+      })
+      
+      // Keep only last 10 commands
+      if (commandHistory.value.length > 10) {
+        commandHistory.value = commandHistory.value.slice(0, 10)
+      }
+      
+      speakCommand(commandText)
+    } else {
+      // No commands available
+      console.log('No commands available:', response.message)
     }
-    
-    speakCommand(command)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get next command:', error)
+    
+    // If session not found, stop polling
+    if (error.message?.includes('No active haunting session')) {
+      stopPolling()
+      sessionActive.value = false
+    }
   }
 }
 
@@ -198,16 +203,30 @@ const stopHaunting = async () => {
   }
   
   try {
-    // TODO: Call API to stop haunting
+    await api.haunting.stop()
+    sessionActive.value = false
     router.push('/devices')
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to stop haunting:', error)
+    alert(`Failed to stop haunting: ${error.message}`)
+  }
+}
+
+const startHauntingSession = async () => {
+  try {
+    await api.haunting.start()
+    sessionActive.value = true
+    startPolling()
+  } catch (error: any) {
+    console.error('Failed to start haunting:', error)
+    alert(`Failed to start haunting: ${error.message}`)
+    router.push('/devices')
   }
 }
 
 onMounted(() => {
   speechSynthesis = window.speechSynthesis
-  startPolling()
+  startHauntingSession()
 })
 
 onUnmounted(() => {

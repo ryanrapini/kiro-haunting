@@ -94,6 +94,7 @@ import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
+import api from '../services/api'
 
 const router = useRouter()
 
@@ -108,13 +109,12 @@ const saveConfig = async () => {
   errorMessage.value = ''
   
   try {
-    // TODO: Call API to save config
-    // For now, just store locally
+    // Save config via API
+    await api.config.saveConfig(selectedPlatform.value, 'simple')
+    
+    // Also store locally for quick access
     localStorage.setItem('platform', selectedPlatform.value)
     localStorage.setItem('mode', 'simple')
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
     
     router.push('/devices')
   } catch (error: any) {

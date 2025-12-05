@@ -3,13 +3,20 @@
   <div class="dark-mode min-h-screen bg-zinc-950 text-white">
     <header class="border-b border-purple-900/50 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-50">
       <div class="container mx-auto px-6 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-4xl font-spooky text-orange-500 flex items-center gap-3">
+        <div class="flex flex-col md:flex-row items-center md:justify-between gap-3 md:gap-0">
+          <h1 class="text-3xl md:text-4xl font-spooky text-orange-500 flex items-center gap-3">
             kiro-haunting.me
           </h1>
-          <h3>It's not a haunted <span class="text-orange-500 font-semibold">house</span>... it's a haunted <span class="text-purple-400 font-semibold">home!</span></h3>
+          <h3 class="text-sm md:text-base text-center md:text-left">It's not a haunted <span class="text-orange-500 font-semibold">house</span>... it's a haunted <span class="text-purple-400 font-semibold">home!</span></h3>
           <div v-if="isAuthenticated" class="flex items-center gap-4">
-            <span class="text-gray-300">{{ userEmail }}</span>
+            <Button 
+              label="Status" 
+              icon="pi pi-chart-line" 
+              severity="secondary" 
+              outlined
+              @click="router.push('/status')"
+            />
+            <span class="text-gray-300 text-sm">{{ userEmail }}</span>
             <Button 
               label="Logout" 
               icon="pi pi-sign-out" 

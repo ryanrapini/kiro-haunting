@@ -430,17 +430,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Force dark mode for all accordion elements */
 .spec-accordion :deep(.p-accordion) {
-  background: transparent;
+  background: transparent !important;
 }
 
 .spec-accordion :deep(.p-accordion-tab) {
-  background: transparent;
+  background: transparent !important;
   margin-bottom: 0.75rem;
 }
 
 .spec-accordion :deep(.p-accordion-header) {
-  background: transparent;
+  background: transparent !important;
 }
 
 .spec-accordion :deep(.p-accordion-header-link) {
@@ -462,6 +463,10 @@ onMounted(async () => {
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.5) !important;
 }
 
+.spec-accordion :deep(.p-accordion-header-text) {
+  color: white !important;
+}
+
 .spec-accordion :deep(.p-accordion-toggle-icon) {
   color: rgba(251, 146, 60, 0.9) !important;
 }
@@ -472,6 +477,11 @@ onMounted(async () => {
   padding: 0.5rem 0 !important;
   margin-bottom: 0;
   color: white !important;
+}
+
+/* Force dark background for content wrapper */
+.spec-accordion :deep(.p-toggleable-content) {
+  background: transparent !important;
 }
 
 /* Custom scrollbar for spec content */

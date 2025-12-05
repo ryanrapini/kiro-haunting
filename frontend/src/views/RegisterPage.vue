@@ -38,7 +38,7 @@
               required
             >
               <template #footer>
-                <div class="text-xs text-gray-400 mt-2 p-2 bg-zinc-800/50 rounded">
+                <div class="password-requirements">
                   Password must contain:
                   <ul class="list-disc list-inside mt-1 space-y-1">
                     <li>At least 8 characters</li>
@@ -199,3 +199,26 @@ const handleRegister = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Force dark mode for password requirements footer */
+.password-requirements {
+  background: rgba(39, 39, 42, 0.5) !important;
+  color: rgb(156, 163, 175) !important;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+:deep(.p-password-panel) {
+  background: #18181b !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+  color: white !important;
+}
+
+:deep(.p-password-meter) {
+  background: rgba(39, 39, 42, 0.5) !important;
+}
+</style>

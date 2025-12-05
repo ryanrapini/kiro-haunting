@@ -51,7 +51,7 @@ This implementation plan focuses on delivering a minimal viable Simple Mode - a 
   - Create Lambda for device CRUD (GET /devices, DELETE /devices/:id)
   - _Requirements: 2.6, 3.1-3.4_
 
-- [ ] 8. Create sub-agent system prompts
+- [x] 8. Create sub-agent system prompts
   - Write Lights Sub-Agent prompt (generates voice commands for lights)
   - Write Audio Sub-Agent prompt (generates voice commands for speakers)
   - Write TV Sub-Agent prompt (generates voice commands for TVs)
@@ -60,63 +60,97 @@ This implementation plan focuses on delivering a minimal viable Simple Mode - a 
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 9. Create haunting orchestrator backend
-  - Create Lambda function for agent orchestration
-  - Implement haunting session creation in DynamoDB
-  - Group devices by type and call OpenAI with sub-agent prompts
-  - Build command queue with randomized order
+- [x] 9.1 Create haunting session service
+  - Implement session creation, retrieval, and update functions in backend/src/services/hauntingService.ts
+  - Store sessions in DynamoDB HauntingSessions table
+  - Include session state management (active, stopped)
+  - _Requirements: 5.1_
+
+- [x] 9.2 Create orchestrator Lambda handler
+  - Create backend/src/handlers/haunting.ts with startHaunting, stopHaunting, and getNextCommand handlers
+  - Implement device grouping by type (lights, speakers, TVs, smart plugs)
+  - Call OpenRouter API with appropriate sub-agent prompts for each device type
+  - Parse AI responses to extract voice commands
+  - Build randomized command queue from all generated commands
   - Store session with command queue in DynamoDB
-  - _Requirements: 5.1, 5.2, 5.3_
+  - Export handlers in backend/src/index.ts
+  - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-- [ ] 10. Implement haunting control endpoints
-  - Create Lambda for start haunting (POST /haunting/start)
-  - Create Lambda for stop haunting (POST /haunting/stop)
-  - Create Lambda for get next command (GET /haunting/command)
-  - Mark commands as spoken and trigger regeneration when queue is low
-  - _Requirements: 4.3, 5.5, 11.2_
+- [x] 9.3 Implement command queue management
+  - Mark commands as spoken when retrieved via getNextCommand
+  - Trigger command regeneration when queue drops below threshold (e.g., 5 commands)
+  - Ensure commands are returned in randomized order
+  - Handle empty queue scenarios gracefully
+  - _Requirements: 5.3, 5.4_
 
-- [ ] 11. Create API client service and integrate frontend
-  - Create centralized API client in frontend/src/services/api.ts
-  - Implement all API endpoints (auth, config, devices, haunting)
-  - Replace mock data in all components with real API calls
-  - Add error handling and loading states
-  - Test complete user flow
+- [ ] 10. Create API client service and integrate frontend
+- [x] 10.1 Create centralized API client
+  - Create frontend/src/services/api.ts with typed API methods
+  - Implement authentication token management
+  - Add error handling and retry logic
+  - Include methods for: config, devices, haunting endpoints
   - _Requirements: All API-related requirements_
 
-- [ ] 12. Set up custom domain and SSL
-  - Configure Route 53 hosted zone for kiro-haunting.me
-  - Request SSL certificate via AWS Certificate Manager
-  - Set up CloudFront distribution for frontend
-  - Create Route 53 A record pointing to CloudFront
-  - Update API Gateway with custom domain (api.kiro-haunting.me)
-  - _Requirements: MVP infrastructure_
+- [x] 10.2 Integrate API client in SetupPage
+  - Replace localStorage with API call to save user config
+  - Add proper error handling and loading states
+  - Test platform selection flow
+  - _Requirements: 1.1, 1.2_
 
-- [ ] 13. Deploy backend to AWS
+- [x] 10.3 Integrate API client in DevicesPage
+  - Replace mock data with real API calls to device chat endpoint
+  - Implement device list fetching from API
+  - Implement device deletion via API
+  - Handle conversation history properly
+  - Test complete device setup flow
+  - _Requirements: 2.6, 3.1-3.4_
+
+- [ ] 10.4 Add device editing functionality
+- [ ] 10.4.1 Update Device model and backend
+  - Add enabledCapabilities field to Device interface in backend/src/models/types.ts
+  - Create DEVICE_CAPABILITIES constant mapping device types to available capabilities
+  - Implement updateDevice function in backend/src/services/deviceService.ts
+  - Create PUT /devices/:id Lambda handler in backend/src/handlers/devices.ts
+  - Validate that at least one capability is selected before saving
+  - Export handler in backend/src/index.ts
+  - _Requirements: 4.1, 4.4, 4.6_
+
+- [ ] 10.4.2 Add device editing UI
+  - Create EditDeviceModal component in frontend/src/components/EditDeviceModal.vue
+  - Display device name, formal name, and type-specific capability checkboxes
+  - Add edit button to each device card in DevicesPage
+  - Implement updateDevice method in frontend/src/services/api.ts
+  - Show validation error if no capabilities selected
+  - Refresh device list after successful update
+  - _Requirements: 4.1, 4.2, 4.3, 4.5, 4.6_
+
+- [x] 10.5 Integrate API client in HauntingPage
+  - Replace mock commands with real API calls to getNextCommand
+  - Implement start/stop haunting API calls
+  - Handle session state management
+  - Test complete haunting flow with TTS
+  - _Requirements: 4.3, 5.5, 10.1, 10.2, 11.1, 11.2_
+
+- [ ] 11. Deploy and test complete application
+- [x] 11.1 Deploy backend to AWS
   - Build backend TypeScript code
-  - Package Lambda functions with dependencies
-  - Store OpenAI API key in SSM Parameter Store
-  - Deploy CDK stack with actual Lambda implementations
-  - Test all API endpoints
+  - Update CDK stack to use real Lambda implementations (not placeholders)
+  - Deploy updated stack with all handlers
+  - Test all API endpoints via API Gateway
   - _Requirements: MVP infrastructure_
 
-- [ ] 14. Deploy frontend to AWS
+- [ ] 11.2 Deploy frontend to AWS
+  - Update frontend environment variables with production API URL
   - Build Vue app for production
   - Upload build artifacts to S3 bucket
   - Configure CloudFront distribution
-  - Test application at kiro-haunting.me
-  - Verify complete user flow in production
+  - Test application end-to-end in production
   - _Requirements: MVP infrastructure_
 
-- [ ] 15. End-to-end testing and polish
+- [ ] 11.3 End-to-end testing
   - Test complete user flow from registration to haunting
   - Test with actual Alexa or Google Home devices
-  - Verify voice commands work correctly
+  - Verify voice commands work correctly via TTS
   - Test with multiple device types
-  - Fix any bugs or issues
+  - Fix any bugs or issues discovered
   - _Requirements: All requirements_
-
-- [ ] 16. Documentation
-  - Update README with setup instructions
-  - Document environment variables
-  - Create demo video showing full flow
-  - Document known limitations
-  - _Requirements: Hackathon submission requirements_

@@ -30,9 +30,10 @@ export async function saveDevice(
   }
 ): Promise<Device> {
   const now = new Date().toISOString();
+  const deviceId = randomUUID();
   
   const device: Device = {
-    id: randomUUID(),
+    id: deviceId,
     userId,
     name: deviceData.name,
     formalName: deviceData.formalName,
@@ -44,10 +45,14 @@ export async function saveDevice(
     createdAt: now,
   };
 
+  // Save to DynamoDB with deviceId as the sort key
   await docClient.send(
     new PutCommand({
       TableName: DEVICES_TABLE,
-      Item: device,
+      Item: {
+        ...device,
+        deviceId: deviceId, // DynamoDB uses deviceId as sort key
+      },
     })
   );
 
@@ -80,7 +85,7 @@ export async function getDevice(userId: string, deviceId: string): Promise<Devic
       TableName: DEVICES_TABLE,
       Key: {
         userId,
-        id: deviceId,
+        deviceId: deviceId,
       },
     })
   );
@@ -101,7 +106,7 @@ export async function deleteDevice(userId: string, deviceId: string): Promise<vo
       TableName: DEVICES_TABLE,
       Key: {
         userId,
-        id: deviceId,
+        deviceId: deviceId,
       },
     })
   );

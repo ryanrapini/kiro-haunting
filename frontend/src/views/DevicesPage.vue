@@ -130,22 +130,11 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import api, { type Device, type ChatMessage } from '../services/api'
 
 const router = useRouter()
 
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-interface Device {
-  id: string
-  name: string
-  type: string
-  formalName: string
-}
-
-const messages = ref<Message[]>([
+const messages = ref<ChatMessage[]>([
   {
     role: 'assistant',
     content: 'Hi! I\'m here to help you set up your devices. Tell me about a device you\'d like to add. For example: "I have a bedroom lamp" or "There\'s a living room speaker".'
@@ -190,37 +179,66 @@ const sendMessage = async () => {
   loading.value = true
   
   try {
-    // TODO: Call API endpoint
-    // Simulate AI response for now
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Get conversation history (exclude first system message and the message we just added)
+    const conversationHistory = messages.value.slice(1, -1)
+    
+    console.log('Sending message:', message)
+    console.log('Conversation history:', conversationHistory)
+    
+    // Call API
+    const response = await api.devices.chat(message, conversationHistory)
+    
+    console.log('API response:', response)
     
     messages.value.push({
       role: 'assistant',
-      content: 'Great! I\'ve added that device. Would you like to add another device, or are you ready to start haunting?'
+      content: response.response
     })
     
-    // Simulate device creation
-    devices.value.push({
-      id: Date.now().toString(),
-      name: message,
-      type: 'light',
-      formalName: message
-    })
+    // If a device was saved, add it to the list
+    if (response.deviceSaved && response.device) {
+      devices.value.push(response.device)
+    }
     
     scrollToBottom()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to send message:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response
+    })
+    messages.value.push({
+      role: 'assistant',
+      content: `Sorry, I encountered an error: ${error.message}. Please try again.`
+    })
+    scrollToBottom()
   } finally {
     loading.value = false
   }
 }
 
-const deleteDevice = (id: string) => {
-  devices.value = devices.value.filter(d => d.id !== id)
+const deleteDevice = async (id: string) => {
+  try {
+    await api.devices.deleteDevice(id)
+    devices.value = devices.value.filter(d => d.id !== id)
+  } catch (error: any) {
+    console.error('Failed to delete device:', error)
+    alert(`Failed to delete device: ${error.message}`)
+  }
+}
+
+const loadDevices = async () => {
+  try {
+    devices.value = await api.devices.getDevices()
+  } catch (error) {
+    console.error('Failed to load devices:', error)
+  }
 }
 
 onMounted(() => {
   scrollToBottom()
+  loadDevices()
 })
 </script>
 

@@ -56,6 +56,19 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 
 ### Requirement 4
 
+**User Story:** As a user, I want to edit my devices and customize their capabilities, so that I can control exactly how each device behaves during the haunting.
+
+#### Acceptance Criteria
+
+1. WHEN a user views a device THEN the Web Interface SHALL display an edit button for that device
+2. WHEN a user clicks the edit button THEN the Web Interface SHALL display a modal with editable fields for device name, formal name, and capabilities
+3. WHEN editing device capabilities THEN the Web Interface SHALL provide checkboxes for available actions based on device type (lights: color, brightness, on/off; speakers: play spooky music, adjust volume; TVs: show videos of ghosts, display static; smart plugs: on/off; blinds: open/close)
+4. WHEN a user saves device changes THEN the Orchestrator SHALL update the device configuration in the database immediately
+5. WHEN a user deletes a device THEN the Web Interface SHALL prompt for confirmation before removing the device permanently
+6. WHERE a device has no capabilities selected THEN the Web Interface SHALL prevent saving and display a warning message
+
+### Requirement 5
+
 **User Story:** As a user, I want to trigger the haunting routine using voice commands, so that I can start the experience hands-free.
 
 #### Acceptance Criteria
@@ -66,7 +79,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN the haunting routine is already running THEN the Orchestrator SHALL ignore duplicate trigger requests
 5. IF the system is not properly configured THEN the voice assistant SHALL respond with an error message
 
-### Requirement 5
+### Requirement 6
 
 **User Story:** As a user, I want the system to orchestrate multiple device types simultaneously, so that the haunting feels coordinated and immersive.
 
@@ -78,7 +91,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHILE the haunting routine is active THEN the Orchestrator SHALL coordinate timing between Sub-Agents to create cohesive effects
 5. WHEN a user stops the haunting routine THEN the Orchestrator SHALL terminate all Sub-Agents and restore devices to their previous states
 
-### Requirement 6
+### Requirement 7
 
 **User Story:** As a user, I want specialized agents for different device types, so that each device is used appropriately for maximum spooky effect.
 
@@ -90,7 +103,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN controlling smart plugs THEN the Smart Plug Sub-Agent SHALL turn connected devices on and off to create unexpected events
 5. WHILE Sub-Agents operate THEN each Sub-Agent SHALL avoid actions that could damage devices or exceed safe operating parameters
 
-### Requirement 7
+### Requirement 8
 
 **User Story:** As a user, I want to choose from preset haunting themes, so that I can customize the experience to my preferences.
 
@@ -102,7 +115,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN the haunting routine runs THEN Sub-Agents SHALL follow the behavior patterns defined by the selected theme
 5. WHERE no theme is selected THEN the Orchestrator SHALL use a default "Classic Ghost" theme
 
-### Requirement 8
+### Requirement 9
 
 **User Story:** As a user with photosensitive epilepsy concerns, I want to disable strobe effects, so that the experience is safe for me and my guests.
 
@@ -114,7 +127,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN the toggle is enabled THEN the Television Sub-Agent SHALL avoid displaying rapidly flashing content
 5. WHILE the safety toggle is enabled THEN all Sub-Agents SHALL maintain these restrictions throughout the haunting routine
 
-### Requirement 9
+### Requirement 10
 
 **User Story:** As a power user, I want to view and edit the system prompts for each agent, so that I can fine-tune the haunting behaviors.
 
@@ -126,7 +139,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN a user saves a modified prompt THEN the Orchestrator SHALL update the Sub-Agent configuration immediately
 5. WHERE a user has modified prompts THEN the Web Interface SHALL provide a "Reset to Default" option for each Sub-Agent
 
-### Requirement 10
+### Requirement 11
 
 **User Story:** As a user, I want to monitor the haunting in real-time, so that I can see what actions are being performed.
 
@@ -138,7 +151,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN the haunting routine stops THEN the Web Interface SHALL preserve the activity log for review
 5. WHERE the activity feed exceeds 100 entries THEN the Web Interface SHALL remove the oldest entries to maintain performance
 
-### Requirement 11
+### Requirement 12
 
 **User Story:** As a user, I want to manually stop the haunting routine, so that I can end the experience at any time.
 
@@ -150,7 +163,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHEN devices are restored THEN the Web Interface SHALL display a confirmation message
 5. IF device restoration fails for any device THEN the Web Interface SHALL display which devices could not be restored and provide manual control options
 
-### Requirement 12
+### Requirement 13
 
 **User Story:** As a developer, I want the system to handle API rate limits gracefully, so that the application doesn't crash or get blocked by smart home platforms.
 
@@ -162,7 +175,7 @@ The Haunted Home Orchestrator is an agentic AI application that transforms a use
 4. WHILE rate limiting is active THEN Sub-Agents SHALL continue operating with reduced action frequency
 5. WHEN rate limits are exceeded THEN the Web Interface SHALL notify the user and suggest reducing the number of active devices
 
-### Requirement 13
+### Requirement 14
 
 **User Story:** As a user, I want the web interface to be visually themed for Halloween, so that the application itself feels spooky and immersive.
 

@@ -4,7 +4,7 @@
   "description": "Backend Lambda functions for Haunted Home Orchestrator",
   "main": "dist/index.js",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --format cjs",
     "watch": "bun --watch src/index.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
