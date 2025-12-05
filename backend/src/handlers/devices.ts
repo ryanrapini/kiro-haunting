@@ -1,9 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { callOpenRouter, OpenRouterMessage } from '../services/openRouterService';
 import { getDeviceSetupSystemPrompt } from '../prompts/deviceSetupAgent';
-import { saveDevice, getUserDevices, deleteDevice } from '../services/deviceService';
+import { saveDevice, getUserDevices, deleteDevice, toggleDevice, updateDeviceSettings } from '../services/deviceService';
 import { getUserConfig } from '../services/configService';
-import { DeviceType } from '../models/types';
+import { DeviceType, FrequencyLevel } from '../models/types';
 
 /**
  * Lambda handler for device chat endpoint (POST /devices/chat)
@@ -267,6 +267,224 @@ export async function deleteDeviceHandler(
     };
   } catch (error) {
     console.error('Error deleting device:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+    };
+  }
+}
+
+/**
+ * Lambda handler for toggling device enabled state (PUT /devices/:id/toggle)
+ */
+export async function toggleDeviceHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract userId from Cognito authorizer context
+    const userId = event.requestContext.authorizer?.claims?.sub;
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Unauthorized: No user ID found' }),
+      };
+    }
+
+    // Get device ID from path parameters
+    const deviceId = event.pathParameters?.id;
+    
+    if (!deviceId) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Device ID is required' }),
+      };
+    }
+
+    // Parse request body
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Request body is required' }),
+      };
+    }
+
+    const { enabled } = JSON.parse(event.body);
+
+    if (typeof enabled !== 'boolean') {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'enabled field must be a boolean' }),
+      };
+    }
+
+    // Toggle device
+    const updatedDevice = await toggleDevice(userId, deviceId, enabled);
+
+    if (!updatedDevice) {
+      return {
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Device not found' }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ device: updatedDevice }),
+    };
+  } catch (error) {
+    console.error('Error toggling device:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+    };
+  }
+}
+
+/**
+ * Lambda handler for updating device settings (PUT /devices/:id/settings)
+ */
+export async function updateDeviceSettingsHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract userId from Cognito authorizer context
+    const userId = event.requestContext.authorizer?.claims?.sub;
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Unauthorized: No user ID found' }),
+      };
+    }
+
+    // Get device ID from path parameters
+    const deviceId = event.pathParameters?.id;
+    
+    if (!deviceId) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Device ID is required' }),
+      };
+    }
+
+    // Parse request body
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Request body is required' }),
+      };
+    }
+
+    const { frequency, customPrompt } = JSON.parse(event.body);
+
+    // Validate frequency if provided
+    if (frequency !== undefined) {
+      const validFrequencies = Object.values(FrequencyLevel);
+      if (!validFrequencies.includes(frequency)) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify({ 
+            error: 'Invalid frequency value',
+            validValues: validFrequencies
+          }),
+        };
+      }
+    }
+
+    // Validate custom prompt if provided (must be non-empty string)
+    if (customPrompt !== undefined && (typeof customPrompt !== 'string' || customPrompt.trim() === '')) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Custom prompt must be a non-empty string' }),
+      };
+    }
+
+    // Update device settings
+    const updatedDevice = await updateDeviceSettings(userId, deviceId, {
+      frequency,
+      customPrompt: customPrompt?.trim()
+    });
+
+    if (!updatedDevice) {
+      return {
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Device not found' }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ device: updatedDevice }),
+    };
+  } catch (error) {
+    console.error('Error updating device settings:', error);
     return {
       statusCode: 500,
       headers: {
