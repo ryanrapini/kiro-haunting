@@ -10,6 +10,13 @@
           <h3 class="text-sm md:text-base text-center md:text-left">It's not a haunted <span class="text-orange-500 font-semibold">house</span>... it's a haunted <span class="text-purple-400 font-semibold">home!</span></h3>
           <div v-if="isAuthenticated" class="flex items-center gap-4">
             <Button 
+              label="Settings" 
+              icon="pi pi-cog" 
+              severity="secondary" 
+              outlined
+              @click="router.push('/settings')"
+            />
+            <Button 
               label="Status" 
               icon="pi pi-chart-line" 
               severity="secondary" 

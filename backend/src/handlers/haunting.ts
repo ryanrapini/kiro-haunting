@@ -1,18 +1,23 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { getUserConfig } from '../services/configService';
 import { getUserDevices } from '../services/deviceService';
+import { getSettings } from '../services/settingsService';
 import { 
   createSession, 
   getActiveSession, 
   stopSession,
   markCommandSpoken,
-  updateCommandQueue
+  updateCommandQueue,
+  EnhancedHauntingService
 } from '../services/hauntingService';
 import { Orchestrator } from '../services/orchestratorService';
+import { SceneSetupService } from '../services/sceneSetupService';
 import { orchestratorConfig } from '../config/orchestrator';
 
-// Store active orchestrators in memory (Lambda container reuse)
+// Store active orchestrators and scene setup services in memory (Lambda container reuse)
 const activeOrchestrators = new Map<string, Orchestrator>();
+const activeSceneSetups = new Map<string, SceneSetupService>();
+const activeHauntingServices = new Map<string, EnhancedHauntingService>();
 
 /**
  * Lambda handler for starting a haunting session (POST /haunting/start)
@@ -51,7 +56,7 @@ export async function startHaunting(
       };
     }
 
-    // Get user config and devices
+    // Get user config, devices, and settings
     const config = await getUserConfig(userId);
     if (!config) {
       return {
@@ -78,15 +83,31 @@ export async function startHaunting(
       };
     }
 
-    // Create orchestrator and start it
+    // Get orchestrator settings
+    const settings = await getSettings(userId);
+    
+    // Create enhanced haunting service with settings
+    const hauntingService = new EnhancedHauntingService(settings);
+    activeHauntingServices.set(userId, hauntingService);
+
+    // PHASE 1: Scene Setup
+    const sceneSetupService = new SceneSetupService(userId, config);
+    activeSceneSetups.set(userId, sceneSetupService);
+    
+    const sceneSetupResult = await sceneSetupService.executeSceneSetup(enabledDevices);
+    
+    // PHASE 2: Create orchestrator for random triggers
     const orchestrator = new Orchestrator(userId, config, enabledDevices);
-    const initialCommands = await orchestrator.start();
+    const randomCommands = await orchestrator.start();
     
     // Store orchestrator in memory
     activeOrchestrators.set(userId, orchestrator);
     
+    // Combine scene setup commands with initial random commands
+    const allCommands = [...sceneSetupResult.commands, ...randomCommands];
+    
     // Create session in DynamoDB
-    const session = await createSession(userId, config.mode, initialCommands);
+    const session = await createSession(userId, config.mode, allCommands);
 
     return {
       statusCode: 200,
@@ -97,8 +118,13 @@ export async function startHaunting(
       body: JSON.stringify({
         message: 'Haunting started successfully',
         sessionId: session.sessionId,
-        commandsGenerated: initialCommands.length,
+        sceneSetup: {
+          devicesConfigured: sceneSetupResult.devicesConfigured,
+          setupDuration: sceneSetupResult.setupDuration,
+        },
+        commandsGenerated: allCommands.length,
         deviceCount: enabledDevices.length,
+        phases: ['scene_setup', 'random_triggers'],
       }),
     };
   } catch (error) {
@@ -157,6 +183,12 @@ export async function stopHaunting(
       orchestrator.stop();
       activeOrchestrators.delete(userId);
     }
+    
+    // Clean up scene setup service
+    activeSceneSetups.delete(userId);
+    
+    // Clean up haunting service
+    activeHauntingServices.delete(userId);
 
     // Mark session as stopped in DynamoDB
     await stopSession(userId, session.sessionId);
@@ -174,6 +206,145 @@ export async function stopHaunting(
     };
   } catch (error) {
     console.error('Error stopping haunting:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+    };
+  }
+}
+
+/**
+ * Lambda handler for getting scene setup progress (GET /haunting/setup-progress)
+ */
+export async function getSetupProgress(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract userId from Cognito authorizer context
+    const userId = event.requestContext.authorizer?.claims?.sub;
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Unauthorized: No user ID found' }),
+      };
+    }
+
+    // Get scene setup service from memory
+    const sceneSetupService = activeSceneSetups.get(userId);
+    
+    if (!sceneSetupService) {
+      return {
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'No active scene setup found' }),
+      };
+    }
+
+    const progress = sceneSetupService.getSetupProgress();
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ progress }),
+    };
+  } catch (error) {
+    console.error('Error getting setup progress:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+    };
+  }
+}
+
+/**
+ * Lambda handler for updating orchestrator settings during active session (PUT /haunting/settings)
+ */
+export async function updateLiveSettings(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract userId from Cognito authorizer context
+    const userId = event.requestContext.authorizer?.claims?.sub;
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Unauthorized: No user ID found' }),
+      };
+    }
+
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'Request body is required' }),
+      };
+    }
+
+    const newSettings = JSON.parse(event.body);
+    
+    // Get haunting service from memory
+    const hauntingService = activeHauntingServices.get(userId);
+    
+    if (!hauntingService) {
+      return {
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify({ error: 'No active haunting session found' }),
+      };
+    }
+
+    // Update settings in the active service
+    hauntingService.updateSettings(newSettings);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({
+        message: 'Settings updated successfully',
+        settings: hauntingService.getSettings(),
+      }),
+    };
+  } catch (error) {
+    console.error('Error updating live settings:', error);
     return {
       statusCode: 500,
       headers: {

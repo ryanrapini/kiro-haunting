@@ -68,6 +68,11 @@ export interface Device {
   mode: 'simple' | 'connected';
   commandExamples?: string[];
   enabled: boolean;
+  frequency: 'infrequent' | 'normal' | 'frequent';
+  customPrompt?: string;
+  defaultPrompt: string;
+  selectionWeight: number;
+  actionCount: number;
   createdAt: string;
 }
 
@@ -103,6 +108,35 @@ export interface NextCommandResponse {
   command: VoiceCommand | null;
   queueSize: number;
   message?: string;
+}
+
+export interface DeviceSettings {
+  frequency?: 'infrequent' | 'normal' | 'frequent';
+  customPrompt?: string;
+  name?: string;
+  formalName?: string;
+}
+
+export interface DeviceUpdates {
+  name?: string;
+  formalName?: string;
+  frequency?: 'infrequent' | 'normal' | 'frequent';
+  customPrompt?: string;
+}
+
+export interface OrchestratorSettings {
+  userId: string;
+  minTriggerInterval: number; // in milliseconds on backend, seconds on frontend
+  maxTriggerInterval: number; // in milliseconds on backend, seconds on frontend
+  epilepsyMode: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SettingsUpdateRequest {
+  minTriggerInterval?: number; // in seconds from frontend
+  maxTriggerInterval?: number; // in seconds from frontend
+  epilepsyMode?: boolean;
 }
 
 // ============================================
@@ -163,6 +197,36 @@ export const devicesApi = {
       method: 'DELETE',
     });
   },
+
+  /**
+   * Toggle device enabled/disabled state
+   */
+  async toggleDevice(deviceId: string, enabled: boolean): Promise<Device> {
+    return apiFetch<Device>(`/devices/${deviceId}/toggle`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
+  /**
+   * Update device settings (frequency, custom prompt, name, etc.)
+   */
+  async updateDeviceSettings(deviceId: string, settings: DeviceSettings): Promise<Device> {
+    return apiFetch<Device>(`/devices/${deviceId}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  },
+
+  /**
+   * Generate default prompt for a device type
+   */
+  async generateDefaultPrompt(deviceType: string): Promise<{ prompt: string }> {
+    return apiFetch<{ prompt: string }>('/devices/default-prompt', {
+      method: 'POST',
+      body: JSON.stringify({ deviceType }),
+    });
+  },
 };
 
 // ============================================
@@ -199,6 +263,52 @@ export const hauntingApi = {
 };
 
 // ============================================
+// Settings API
+// ============================================
+
+export const settingsApi = {
+  /**
+   * Get orchestrator settings
+   */
+  async getSettings(): Promise<OrchestratorSettings> {
+    const response = await apiFetch<OrchestratorSettings>('/settings', {
+      method: 'GET',
+    });
+    
+    // Convert milliseconds to seconds for frontend display
+    return {
+      ...response,
+      minTriggerInterval: Math.round(response.minTriggerInterval / 1000),
+      maxTriggerInterval: Math.round(response.maxTriggerInterval / 1000),
+    };
+  },
+
+  /**
+   * Update orchestrator settings
+   */
+  async updateSettings(settings: SettingsUpdateRequest): Promise<OrchestratorSettings> {
+    // Convert seconds to milliseconds for backend
+    const backendSettings = {
+      ...settings,
+      minTriggerInterval: settings.minTriggerInterval ? settings.minTriggerInterval * 1000 : undefined,
+      maxTriggerInterval: settings.maxTriggerInterval ? settings.maxTriggerInterval * 1000 : undefined,
+    };
+    
+    const response = await apiFetch<OrchestratorSettings>('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(backendSettings),
+    });
+    
+    // Convert milliseconds to seconds for frontend display
+    return {
+      ...response,
+      minTriggerInterval: Math.round(response.minTriggerInterval / 1000),
+      maxTriggerInterval: Math.round(response.maxTriggerInterval / 1000),
+    };
+  },
+};
+
+// ============================================
 // Export combined API client
 // ============================================
 
@@ -206,6 +316,7 @@ export const api = {
   config: configApi,
   devices: devicesApi,
   haunting: hauntingApi,
+  settings: settingsApi,
 };
 
 export default api;

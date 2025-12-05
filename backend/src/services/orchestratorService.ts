@@ -1,4 +1,4 @@
-import { Device, DeviceType, VoiceCommand, UserConfig } from '../models/types';
+import { Device, DeviceType, VoiceCommand, UserConfig, FREQUENCY_WEIGHTS } from '../models/types';
 import { callOpenRouter, OpenRouterMessage } from './openRouterService';
 import { getSubAgentPrompt } from '../prompts/subAgents';
 import { orchestratorConfig, getRandomInterval } from '../config/orchestrator';
@@ -15,6 +15,62 @@ interface SubAgentState {
 }
 
 /**
+ * Frequency-weighted device selector for enhanced orchestration
+ */
+export class FrequencyWeightedSelector {
+  /**
+   * Select a random device based on frequency weights
+   */
+  selectRandomDevice(devices: Device[]): Device | null {
+    const enabledDevices = devices.filter(d => d.enabled);
+    
+    if (enabledDevices.length === 0) {
+      return null;
+    }
+
+    const deviceWeights = this.calculateDeviceWeights(enabledDevices);
+    const totalWeight = Array.from(deviceWeights.values()).reduce((sum, weight) => sum + weight, 0);
+    
+    if (totalWeight === 0) {
+      // Fallback to random selection if no weights
+      return enabledDevices[Math.floor(Math.random() * enabledDevices.length)];
+    }
+
+    let random = Math.random() * totalWeight;
+    
+    for (const device of enabledDevices) {
+      const weight = deviceWeights.get(device.id) || 0;
+      random -= weight;
+      if (random <= 0) {
+        return device;
+      }
+    }
+    
+    // Fallback to last device
+    return enabledDevices[enabledDevices.length - 1];
+  }
+
+  /**
+   * Calculate selection weights for all devices
+   */
+  calculateDeviceWeights(devices: Device[]): Map<string, number> {
+    const weights = new Map<string, number>();
+    
+    for (const device of devices) {
+      if (!device.enabled) {
+        weights.set(device.id, 0);
+        continue;
+      }
+      
+      const frequencyWeight = FREQUENCY_WEIGHTS[device.frequency] || FREQUENCY_WEIGHTS.NORMAL;
+      weights.set(device.id, frequencyWeight);
+    }
+    
+    return weights;
+  }
+}
+
+/**
  * Orchestrator manages sub-agents and command generation
  */
 export class Orchestrator {
@@ -24,6 +80,8 @@ export class Orchestrator {
   private commandQueue: VoiceCommand[];
   private isActive: boolean;
   private timers: NodeJS.Timeout[];
+  private frequencySelector: FrequencyWeightedSelector;
+  private allDevices: Device[];
 
   constructor(userId: string, config: UserConfig, devices: Device[]) {
     this.userId = userId;
@@ -32,6 +90,8 @@ export class Orchestrator {
     this.isActive = false;
     this.timers = [];
     this.subAgentStates = new Map();
+    this.frequencySelector = new FrequencyWeightedSelector();
+    this.allDevices = devices;
 
     // Group devices by type and initialize sub-agent states
     this.initializeSubAgents(devices);
@@ -136,28 +196,103 @@ export class Orchestrator {
   }
 
   /**
-   * Fire a random sub-agent that is not currently running
+   * Fire a random sub-agent that is not currently running, using frequency-weighted device selection
    */
   private async fireRandomAvailableAgent(): Promise<void> {
-    // Get all agents that are not currently running
-    const availableAgents = Array.from(this.subAgentStates.values())
-      .filter(state => !state.isRunning);
+    // Use frequency-weighted selection to pick a device
+    const selectedDevice = this.frequencySelector.selectRandomDevice(this.allDevices);
     
-    if (availableAgents.length === 0) {
-      console.log('No available agents to fire - all are currently running');
+    if (!selectedDevice) {
+      console.log('No enabled devices available for selection');
       return;
     }
     
-    // Pick a random available agent
-    const randomAgent = availableAgents[Math.floor(Math.random() * availableAgents.length)];
+    // Get the sub-agent state for this device type
+    const agentState = this.subAgentStates.get(selectedDevice.type);
+    
+    if (!agentState) {
+      console.log(`No sub-agent available for device type: ${selectedDevice.type}`);
+      return;
+    }
+    
+    if (agentState.isRunning) {
+      console.log(`Sub-agent ${selectedDevice.type} is already running, skipping`);
+      return;
+    }
     
     try {
-      const commands = await this.fireSubAgent(randomAgent.deviceType);
+      const commands = await this.fireSubAgentForDevice(selectedDevice);
       if (commands) {
         this.commandQueue.push(...commands);
       }
     } catch (error) {
-      console.error(`Failed to fire sub-agent ${randomAgent.deviceType}:`, error);
+      console.error(`Failed to fire sub-agent for device ${selectedDevice.name}:`, error);
+    }
+  }
+
+  /**
+   * Fire a sub-agent for a specific device (frequency-weighted selection)
+   */
+  private async fireSubAgentForDevice(selectedDevice: Device): Promise<VoiceCommand[] | null> {
+    const state = this.subAgentStates.get(selectedDevice.type);
+    
+    if (!state) {
+      console.error(`No state found for device type: ${selectedDevice.type}`);
+      return null;
+    }
+    
+    if (state.isRunning) {
+      console.log(`Sub-agent ${selectedDevice.type} is already running, skipping`);
+      return null;
+    }
+    
+    // Mark as running
+    state.isRunning = true;
+    state.lastFiredAt = Date.now();
+    
+    try {
+      // Map DeviceType enum to string literal type
+      const deviceTypeStr = selectedDevice.type as 'light' | 'speaker' | 'tv' | 'smart_plug';
+      
+      // Use custom prompt if available, otherwise use default
+      const devicePrompt = selectedDevice.customPrompt || selectedDevice.defaultPrompt;
+      
+      // Get the appropriate system prompt with device-specific behavior
+      const systemPrompt = getSubAgentPrompt(deviceTypeStr, {
+        devices: [selectedDevice], // Focus on the selected device
+        platform: this.config.platform,
+        theme: this.config.activeTheme || 'Classic Ghost',
+        epilepsySafeMode: this.config.epilepsySafeMode,
+      });
+      
+      // Enhanced prompt with custom device behavior
+      const enhancedPrompt = `${systemPrompt}
+
+Device-specific behavior: ${devicePrompt}
+
+Focus on device "${selectedDevice.name}" for this command.`;
+      
+      const messages: OpenRouterMessage[] = [
+        { role: 'system', content: enhancedPrompt },
+        { role: 'user', content: `Generate a spooky command for ${selectedDevice.name}.` },
+      ];
+      
+      const response = await callOpenRouter(messages, 0.8);
+      const command = this.parseCommandResponse(response, selectedDevice.type);
+      
+      if (command) {
+        // Update device action count
+        selectedDevice.actionCount = (selectedDevice.actionCount || 0) + 1;
+        return [command];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error firing sub-agent for device ${selectedDevice.name}:`, error);
+      return null;
+    } finally {
+      // Mark as no longer running
+      state.isRunning = false;
     }
   }
 

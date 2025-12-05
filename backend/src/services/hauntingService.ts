@@ -6,7 +6,7 @@ import {
   UpdateCommand,
   QueryCommand
 } from '@aws-sdk/lib-dynamodb';
-import { HauntingSession, VoiceCommand } from '../models/types';
+import { HauntingSession, VoiceCommand, OrchestratorSettings } from '../models/types';
 import { randomUUID } from 'crypto';
 
 // Initialize DynamoDB client
@@ -157,4 +157,54 @@ export async function markCommandSpoken(
   );
 
   await updateCommandQueue(userId, sessionId, updatedQueue);
+}
+
+/**
+ * Get the next trigger delay based on orchestrator settings
+ */
+export function getNextTriggerDelay(settings: OrchestratorSettings): number {
+  const { minTriggerInterval, maxTriggerInterval } = settings;
+  
+  // Handle fixed interval case (min = max)
+  if (minTriggerInterval === maxTriggerInterval) {
+    return minTriggerInterval;
+  }
+  
+  // Generate random interval within bounds
+  const range = maxTriggerInterval - minTriggerInterval;
+  const randomOffset = Math.random() * range;
+  
+  return Math.floor(minTriggerInterval + randomOffset);
+}
+
+/**
+ * Enhanced haunting service with configurable timing
+ */
+export class EnhancedHauntingService {
+  private settings: OrchestratorSettings;
+  
+  constructor(settings: OrchestratorSettings) {
+    this.settings = settings;
+  }
+  
+  /**
+   * Get the next trigger delay using current settings
+   */
+  getNextTriggerDelay(): number {
+    return getNextTriggerDelay(this.settings);
+  }
+  
+  /**
+   * Update settings and apply immediately
+   */
+  updateSettings(newSettings: OrchestratorSettings): void {
+    this.settings = newSettings;
+  }
+  
+  /**
+   * Get current settings
+   */
+  getSettings(): OrchestratorSettings {
+    return { ...this.settings };
+  }
 }

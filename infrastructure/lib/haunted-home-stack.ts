@@ -61,6 +61,17 @@ export class HauntedHomeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // OrchestratorSettings Table
+    const orchestratorSettingsTable = new dynamodb.Table(this, 'OrchestratorSettingsTable', {
+      tableName: 'HauntedHome-OrchestratorSettings',
+      partitionKey: {
+        name: 'userId',
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // ========================================
     // Cognito User Pool
     // ========================================
@@ -125,6 +136,7 @@ export class HauntedHomeStack extends cdk.Stack {
     userConfigTable.grantReadWriteData(lambdaRole);
     devicesTable.grantReadWriteData(lambdaRole);
     hauntingSessionsTable.grantReadWriteData(lambdaRole);
+    orchestratorSettingsTable.grantReadWriteData(lambdaRole);
 
     // Grant SSM parameter access for OpenRouter API key
     lambdaRole.addToPolicy(new iam.PolicyStatement({
@@ -143,6 +155,7 @@ export class HauntedHomeStack extends cdk.Stack {
       USER_CONFIG_TABLE: userConfigTable.tableName,
       DEVICES_TABLE: devicesTable.tableName,
       HAUNTING_SESSIONS_TABLE: hauntingSessionsTable.tableName,
+      ORCHESTRATOR_SETTINGS_TABLE: orchestratorSettingsTable.tableName,
       USER_POOL_ID: userPool.userPoolId,
       USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
     };
@@ -192,6 +205,47 @@ export class HauntedHomeStack extends cdk.Stack {
     const deleteDeviceLambda = new lambda.Function(this, 'DeleteDeviceFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.deleteDeviceHandler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const toggleDeviceLambda = new lambda.Function(this, 'ToggleDeviceFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.toggleDeviceHandler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const updateDeviceSettingsLambda = new lambda.Function(this, 'UpdateDeviceSettingsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.updateDeviceSettingsHandler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    // Settings handlers
+    const getSettingsLambda = new lambda.Function(this, 'GetSettingsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.getSettingsHandler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      role: lambdaRole,
+      environment: lambdaEnvironment,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+    });
+
+    const updateSettingsLambda = new lambda.Function(this, 'UpdateSettingsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.updateSettingsHandler',
       code: lambda.Code.fromAsset('../backend/dist'),
       role: lambdaRole,
       environment: lambdaEnvironment,
@@ -281,6 +335,18 @@ export class HauntedHomeStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    const deviceToggleResource = deviceIdResource.addResource('toggle');
+    deviceToggleResource.addMethod('PUT', new apigateway.LambdaIntegration(toggleDeviceLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const deviceSettingsResource = deviceIdResource.addResource('settings');
+    deviceSettingsResource.addMethod('PUT', new apigateway.LambdaIntegration(updateDeviceSettingsLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
     const hauntingResource = api.root.addResource('haunting');
     hauntingResource.addResource('start').addMethod('POST', new apigateway.LambdaIntegration(startHauntingLambda), {
       authorizer,
@@ -291,6 +357,17 @@ export class HauntedHomeStack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
     hauntingResource.addResource('command').addMethod('GET', new apigateway.LambdaIntegration(getNextCommandLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Settings API
+    const settingsResource = api.root.addResource('settings');
+    settingsResource.addMethod('GET', new apigateway.LambdaIntegration(getSettingsLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+    settingsResource.addMethod('PUT', new apigateway.LambdaIntegration(updateSettingsLambda), {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

@@ -85,15 +85,43 @@
               <div 
                 v-for="device in devices" 
                 :key="device.id"
-                class="p-3 bg-zinc-800/50 rounded-lg border border-gray-700 hover:border-gray-600 transition-all"
+                class="device-card p-3 bg-zinc-800/50 rounded-lg border transition-all cursor-pointer"
+                :class="[
+                  device.enabled 
+                    ? 'border-orange-500/50 bg-orange-500/5' 
+                    : 'border-gray-700 hover:border-gray-600'
+                ]"
+                @click="openDeviceSettings(device)"
               >
-                <div class="flex items-start justify-between">
+                <div class="flex items-start justify-between mb-2">
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
-                      <i :class="getDeviceIcon(device.type)" class="text-orange-500"></i>
-                      <span class="font-semibold text-white">{{ device.name }}</span>
+                      <i :class="[getDeviceIcon(device.type), device.enabled ? 'text-orange-500' : 'text-gray-500']"></i>
+                      <span class="font-semibold" 
+                            :class="device.enabled ? 'text-white' : 'text-gray-400'">
+                        {{ device.name }}
+                      </span>
+                      <div class="flex items-center gap-1">
+                        <DeviceToggle
+                          :device-id="device.id"
+                          :enabled="device.enabled"
+                          :loading="toggleLoading[device.id]"
+                          @toggle="handleDeviceToggle"
+                          @click.stop
+                        />
+                      </div>
                     </div>
-                    <p class="text-xs text-gray-400 capitalize">{{ device.type.replace('_', ' ') }}</p>
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="text-gray-400 capitalize">{{ device.type.replace('_', ' ') }}</span>
+                      <span class="text-gray-600">•</span>
+                      <span class="frequency-badge" :class="getFrequencyClass(device.frequency)">
+                        {{ getFrequencyLabel(device.frequency) }}
+                      </span>
+                      <span v-if="device.customPrompt" class="custom-prompt-indicator">
+                        <i class="pi pi-pencil text-xs"></i>
+                        Custom
+                      </span>
+                    </div>
                   </div>
                   <Button 
                     icon="pi pi-trash"
@@ -101,14 +129,19 @@
                     rounded
                     severity="danger"
                     size="small"
-                    @click="deleteDevice(device.id)"
+                    @click.stop="deleteDevice(device.id)"
                   />
+                </div>
+                
+                <!-- Status indicator -->
+                <div v-if="!device.enabled" class="text-xs text-gray-500 italic">
+                  Disabled - will not participate in haunting
                 </div>
               </div>
             </div>
 
             <Button 
-              v-if="devices.length > 0"
+              v-if="enabledDevicesCount > 0"
               label="Start Haunting"
               icon="pi pi-bolt"
               class="w-full mt-4"
@@ -116,20 +149,35 @@
               size="large"
               @click="router.push('/haunting')"
             />
+            
+            <div v-else-if="devices.length > 0" class="text-center mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <i class="pi pi-exclamation-triangle text-yellow-500 mb-2 block"></i>
+              <p class="text-xs text-yellow-200">Enable at least one device to start haunting</p>
+            </div>
           </template>
         </Card>
       </div>
     </div>
+
+    <!-- Device Settings Modal -->
+    <DeviceSettingsModal
+      :device="selectedDevice"
+      :is-open="showSettingsModal"
+      @save="handleDeviceSettingsSave"
+      @close="closeDeviceSettings"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import DeviceToggle from '../components/DeviceToggle.vue'
+import DeviceSettingsModal from '../components/DeviceSettingsModal.vue'
 import api, { type Device, type ChatMessage } from '../services/api'
 
 const router = useRouter()
@@ -146,6 +194,16 @@ const userMessage = ref('')
 const loading = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
 
+// Enhanced device management state
+const selectedDevice = ref<Device | null>(null)
+const showSettingsModal = ref(false)
+const toggleLoading = ref<Record<string, boolean>>({})
+
+// Computed properties
+const enabledDevicesCount = computed(() => 
+  devices.value.filter(d => d.enabled).length
+)
+
 const getDeviceIcon = (type: string): string => {
   const icons: Record<string, string> = {
     light: 'pi-sun',
@@ -154,6 +212,24 @@ const getDeviceIcon = (type: string): string => {
     smart_plug: 'pi-bolt'
   }
   return `pi ${icons[type] || 'pi-circle'}`
+}
+
+const getFrequencyLabel = (frequency: string): string => {
+  const labels: Record<string, string> = {
+    infrequent: 'Infrequent',
+    normal: 'Normal',
+    frequent: 'Frequent'
+  }
+  return labels[frequency] || 'Normal'
+}
+
+const getFrequencyClass = (frequency: string): string => {
+  const classes: Record<string, string> = {
+    infrequent: 'frequency-infrequent',
+    normal: 'frequency-normal',
+    frequent: 'frequency-frequent'
+  }
+  return classes[frequency] || 'frequency-normal'
 }
 
 const scrollToBottom = () => {
@@ -218,6 +294,54 @@ const sendMessage = async () => {
   }
 }
 
+const handleDeviceToggle = async (deviceId: string, enabled: boolean) => {
+  toggleLoading.value[deviceId] = true
+  
+  try {
+    await api.devices.toggleDevice(deviceId, enabled)
+    
+    // Update local device state
+    const device = devices.value.find(d => d.id === deviceId)
+    if (device) {
+      device.enabled = enabled
+    }
+  } catch (error: any) {
+    console.error('Failed to toggle device:', error)
+    alert(`Failed to toggle device: ${error.message}`)
+  } finally {
+    toggleLoading.value[deviceId] = false
+  }
+}
+
+const openDeviceSettings = (device: Device) => {
+  selectedDevice.value = device
+  showSettingsModal.value = true
+}
+
+const closeDeviceSettings = () => {
+  showSettingsModal.value = false
+  selectedDevice.value = null
+}
+
+const handleDeviceSettingsSave = async (updates: any) => {
+  if (!selectedDevice.value) return
+  
+  try {
+    const updatedDevice = await api.devices.updateDeviceSettings(selectedDevice.value.id, updates)
+    
+    // Update local device state
+    const deviceIndex = devices.value.findIndex(d => d.id === selectedDevice.value!.id)
+    if (deviceIndex !== -1) {
+      devices.value[deviceIndex] = updatedDevice
+    }
+    
+    closeDeviceSettings()
+  } catch (error: any) {
+    console.error('Failed to update device settings:', error)
+    alert(`Failed to update device settings: ${error.message}`)
+  }
+}
+
 const deleteDevice = async (id: string) => {
   try {
     await api.devices.deleteDevice(id)
@@ -256,5 +380,55 @@ onMounted(() => {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
+}
+
+/* Enhanced device card styling */
+.device-card {
+  transition: all 0.2s ease;
+}
+
+.device-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.frequency-badge {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.frequency-infrequent {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.frequency-normal {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.frequency-frequent {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.custom-prompt-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  background: rgba(168, 85, 247, 0.2);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 500;
 }
 </style>
