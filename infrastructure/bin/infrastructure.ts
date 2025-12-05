@@ -7,8 +7,8 @@ const app = new cdk.App();
 
 new HauntedHomeStack(app, 'HauntedHomeStack', {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
+    account: '358414165101',
+    region: 'us-east-1',
   },
   description: 'Haunted Home Orchestrator - AI-powered smart home haunting system',
 });

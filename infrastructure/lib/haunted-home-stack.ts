@@ -4,13 +4,7 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as targets from 'aws-cdk-lib/aws-route53-targets';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export class HauntedHomeStack extends cdk.Stack {
@@ -29,8 +23,7 @@ export class HauntedHomeStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // Devices Table
@@ -45,8 +38,7 @@ export class HauntedHomeStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // HauntingSessions Table
@@ -61,22 +53,7 @@ export class HauntedHomeStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
-    });
-
-    // Add GSI for querying active sessions
-    hauntingSessionsTable.addGlobalSecondaryIndex({
-      indexName: 'ActiveSessionsIndex',
-      partitionKey: {
-        name: 'userId',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'isActive',
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // ========================================
@@ -90,7 +67,7 @@ export class HauntedHomeStack extends cdk.Stack {
         email: true,
       },
       autoVerify: {
-        email: true,
+        email: false, // Simplified for MVP
       },
       passwordPolicy: {
         minLength: 8,
@@ -99,8 +76,7 @@ export class HauntedHomeStack extends cdk.Stack {
         requireDigits: true,
         requireSymbols: false,
       },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const userPoolClient = new cognito.UserPoolClient(this, 'HauntedHomeUserPoolClient', {
@@ -129,7 +105,7 @@ export class HauntedHomeStack extends cdk.Stack {
     devicesTable.grantReadWriteData(lambdaRole);
     hauntingSessionsTable.grantReadWriteData(lambdaRole);
 
-    // Grant SSM parameter access for OpenAI API key
+    // Grant SSM parameter access for OpenRouter API key
     lambdaRole.addToPolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
       resources: [
@@ -138,10 +114,9 @@ export class HauntedHomeStack extends cdk.Stack {
     }));
 
     // ========================================
-    // Placeholder Lambda Functions
+    // Placeholder Lambda Function
     // ========================================
 
-    // These will be replaced with actual implementations from ../backend/
     const placeholderLambda = new lambda.Function(this, 'PlaceholderFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
@@ -153,7 +128,7 @@ export class HauntedHomeStack extends cdk.Stack {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
             },
-            body: JSON.stringify({ message: 'Placeholder function' }),
+            body: JSON.stringify({ message: 'Placeholder function - replace with actual implementation' }),
           };
         };
       `),
@@ -179,10 +154,7 @@ export class HauntedHomeStack extends cdk.Stack {
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           'Content-Type',
-          'X-Amz-Date',
           'Authorization',
-          'X-Api-Key',
-          'X-Amz-Security-Token',
         ],
       },
     });
@@ -192,7 +164,7 @@ export class HauntedHomeStack extends cdk.Stack {
       cognitoUserPools: [userPool],
     });
 
-    // API Resources (placeholders for now)
+    // API Resources
     const authResource = api.root.addResource('auth');
     authResource.addMethod('POST', new apigateway.LambdaIntegration(placeholderLambda));
 
@@ -235,66 +207,18 @@ export class HauntedHomeStack extends cdk.Stack {
     // ========================================
 
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `haunted-home-frontend-${this.account}`,
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'index.html',
-      publicReadAccess: false,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      publicReadAccess: true,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false,
+      }),
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     });
-
-    // ========================================
-    // Route 53 & Certificate Manager
-    // ========================================
-    // Note: This requires manual setup of the hosted zone first
-    // Uncomment and configure after domain is set up
-
-    /*
-    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: 'kiro-haunting.me',
-    });
-
-    const certificate = new acm.Certificate(this, 'Certificate', {
-      domainName: 'kiro-haunting.me',
-      subjectAlternativeNames: ['*.kiro-haunting.me'],
-      validation: acm.CertificateValidation.fromDns(hostedZone),
-    });
-
-    // ========================================
-    // CloudFront Distribution
-    // ========================================
-
-    const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
-      defaultBehavior: {
-        origin: new origins.S3Origin(frontendBucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-      },
-      domainNames: ['kiro-haunting.me'],
-      certificate,
-      defaultRootObject: 'index.html',
-      errorResponses: [
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-        },
-      ],
-    });
-
-    // Route 53 Records
-    new route53.ARecord(this, 'FrontendAliasRecord', {
-      zone: hostedZone,
-      recordName: 'kiro-haunting.me',
-      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
-    });
-
-    new route53.ARecord(this, 'APIAliasRecord', {
-      zone: hostedZone,
-      recordName: 'api.kiro-haunting.me',
-      target: route53.RecordTarget.fromAlias(new targets.ApiGateway(api)),
-    });
-    */
 
     // ========================================
     // Outputs
@@ -320,19 +244,9 @@ export class HauntedHomeStack extends cdk.Stack {
       description: 'S3 bucket for frontend hosting',
     });
 
-    new cdk.CfnOutput(this, 'UserConfigTableName', {
-      value: userConfigTable.tableName,
-      description: 'DynamoDB UserConfig table name',
-    });
-
-    new cdk.CfnOutput(this, 'DevicesTableName', {
-      value: devicesTable.tableName,
-      description: 'DynamoDB Devices table name',
-    });
-
-    new cdk.CfnOutput(this, 'HauntingSessionsTableName', {
-      value: hauntingSessionsTable.tableName,
-      description: 'DynamoDB HauntingSessions table name',
+    new cdk.CfnOutput(this, 'FrontendUrl', {
+      value: frontendBucket.bucketWebsiteUrl,
+      description: 'Frontend website URL',
     });
   }
 }
