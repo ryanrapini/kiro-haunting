@@ -42,8 +42,8 @@ This implementation plan focuses on delivering a minimal viable Simple Mode - a 
   - Implement DynamoDB operations for UserConfig table
   - _Requirements: 1.1, 1.2_
 
-- [ ] 7. Implement device setup AI agent backend
-  - Create OpenAI integration utility module
+- [x] 7. Implement device setup AI agent backend
+  - Create OpenRouter integration utility module - we will use cheap Claude Haiku 4.5 for all models for now.
   - Write device setup agent system prompt
   - Create Lambda function for device chat endpoint (POST /devices/chat)
   - Parse agent responses and extract device details

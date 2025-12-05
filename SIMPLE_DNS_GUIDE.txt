@@ -1,0 +1,58 @@
+═══════════════════════════════════════════════════════════════
+  SIMPLE DNS SETUP FOR KIRO-HAUNTING.ME
+═══════════════════════════════════════════════════════════════
+
+STEP 1: GO TO NAMECHEAP
+→ https://www.namecheap.com/myaccount/login/
+→ Log in
+
+STEP 2: FIND YOUR DOMAIN
+→ Click "Domain List" (left sidebar)
+→ Find "kiro-haunting.me"
+→ Click "Manage" button
+
+STEP 3: GO TO DNS SETTINGS
+→ Click "Advanced DNS" tab (at the top)
+
+STEP 4: ADD CERTIFICATE RECORD
+→ Click "+ ADD NEW RECORD" button
+→ Fill in these EXACT values:
+
+   ┌─────────────────────────────────────────────────────┐
+   │ Type:  CNAME Record                                 │
+   │                                                     │
+   │ Host:  _cdd0ce0e7f256ff9632c6e86b5e1b6ce           │
+   │        (copy this exactly, no domain name)          │
+   │                                                     │
+   │ Value: _9be68f67651a6f4f0841e3bad6c4ec62.jkddzzt   │
+   │        szm.acm-validations.aws                      │
+   │        (copy this exactly, no trailing dot)         │
+   │                                                     │
+   │ TTL:   Automatic                                    │
+   └─────────────────────────────────────────────────────┘
+
+→ Click the green checkmark to save
+
+STEP 5: WAIT
+→ Wait 5-15 minutes for DNS to update
+→ AWS will automatically detect it and continue deployment
+→ I'll let you know when it's ready for the next step
+
+═══════════════════════════════════════════════════════════════
+
+COPY-PASTE VALUES:
+
+Host (copy this):
+_cdd0ce0e7f256ff9632c6e86b5e1b6ce
+
+Value (copy this):
+_9be68f67651a6f4f0841e3bad6c4ec62.jkddzztszm.acm-validations.aws
+
+═══════════════════════════════════════════════════════════════
+
+THAT'S IT FOR NOW!
+
+After you add this record, come back and tell me "I added the DNS record"
+and I'll check if it's working and guide you through the next steps.
+
+═══════════════════════════════════════════════════════════════

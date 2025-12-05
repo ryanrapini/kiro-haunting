@@ -27,7 +27,16 @@ bun run dev
 
 Visit http://localhost:3000 to see the UI.
 
-### Full AWS Deployment
+### Full AWS Deployment with Custom Domain
+
+```bash
+# One-command deployment
+./scripts/deploy-with-domain.sh
+```
+
+See [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md) for what this does and [DOMAIN_QUICK_REFERENCE.md](DOMAIN_QUICK_REFERENCE.md) for quick commands.
+
+### Full AWS Deployment (Without Custom Domain)
 
 See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions.
 
@@ -79,9 +88,13 @@ haunted-home-orchestrator/
 ## Documentation
 
 - [Quick Start Guide](QUICKSTART.md) - Get up and running fast
+- [Deployment Summary](DEPLOYMENT_SUMMARY.md) - What changed and next steps
+- [Domain Quick Reference](DOMAIN_QUICK_REFERENCE.md) - Quick commands for domain setup
+- [Custom Domain Setup](infrastructure/DOMAIN_SETUP.md) - Detailed domain connection guide
+- [Domain Architecture](infrastructure/DOMAIN_ARCHITECTURE.md) - How CloudFront + DNS works
 - [AWS Setup Checklist](infrastructure/AWS_SETUP_CHECKLIST.md) - Complete AWS setup guide
 - [Deployment Guide](infrastructure/DEPLOYMENT.md) - Detailed deployment instructions
-- [Requirements](. kiro/specs/haunted-home-orchestrator/requirements.md) - Feature requirements
+- [Requirements](.kiro/specs/haunted-home-orchestrator/requirements.md) - Feature requirements
 - [Design Document](.kiro/specs/haunted-home-orchestrator/design.md) - System architecture
 - [Implementation Tasks](.kiro/specs/haunted-home-orchestrator/tasks.md) - Development roadmap
 

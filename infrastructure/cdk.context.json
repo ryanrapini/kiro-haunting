@@ -1,5 +1,9 @@
 {
   "acknowledged-issue-numbers": [
     34892
-  ]
+  ],
+  "hosted-zone:account=358414165101:domainName=kiro-haunting.me:region=us-east-1": {
+    "Id": "/hostedzone/Z04665592L5UDW7LQABS9",
+    "Name": "kiro-haunting.me."
+  }
 }

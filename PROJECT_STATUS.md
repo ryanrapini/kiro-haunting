@@ -25,7 +25,7 @@ haunted-home-orchestrator/
 **Authentication:**
 - ✅ AWS Cognito User Pool
 - ✅ User Pool Client for web app
-- ✅ Email-based authentication with verification
+- ✅ Email-based authentication (no verification required)
 
 **API:**
 - ✅ API Gateway REST API

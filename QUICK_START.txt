@@ -1,0 +1,120 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   🎃 HAUNTED HOME - CUSTOM DOMAIN SETUP                             ║
+║                                                                      ║
+║   Domain: kiro-haunting.me                                          ║
+║   Status: Ready to deploy                                           ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+📚 START HERE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Read: SETUP_COMPLETE.md
+   
+   This file explains everything that was set up and what to do next.
+
+
+🚀 QUICK DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Run this command:
+   
+   ./scripts/deploy-with-domain.sh
+   
+   It will:
+   1. Deploy AWS infrastructure
+   2. Show you DNS records to add in Namecheap
+   3. Wait for you to confirm
+   4. Deploy your frontend
+   5. Invalidate CloudFront cache
+
+
+📋 STEP-BY-STEP GUIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Follow: DOMAIN_SETUP_CHECKLIST.md
+   
+   A complete checklist with verification steps.
+
+
+🌐 DNS CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Help: NAMECHEAP_DNS_GUIDE.md
+   
+   Visual guide for adding DNS records in Namecheap.
+
+
+⚡ QUICK COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Deploy everything:
+   ./scripts/deploy-with-domain.sh
+   
+   Update frontend:
+   ./scripts/update-frontend.sh
+   
+   Check status:
+   ./scripts/check-domain-status.sh
+
+
+📖 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Overview:           SETUP_COMPLETE.md
+   What Changed:       DEPLOYMENT_SUMMARY.md
+   Quick Reference:    DOMAIN_QUICK_REFERENCE.md
+   Checklist:          DOMAIN_SETUP_CHECKLIST.md
+   DNS Help:           NAMECHEAP_DNS_GUIDE.md
+   Detailed Guide:     infrastructure/DOMAIN_SETUP.md
+   Architecture:       infrastructure/DOMAIN_ARCHITECTURE.md
+
+
+⏱️  TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Infrastructure:     10-15 minutes
+   Certificate:        5-30 minutes (automatic)
+   DNS Propagation:    5-30 minutes
+   Frontend:           2-5 minutes
+   ─────────────────────────────────
+   Total:              30-90 minutes
+
+
+💰 COST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   ACM Certificate:    $0 (free)
+   CloudFront:         ~$1-5/month
+   ─────────────────────────────────
+   Total Additional:   ~$2-10/month
+
+
+�� WHAT YOU'LL GET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   ✅ https://kiro-haunting.me (with HTTPS)
+   ✅ https://www.kiro-haunting.me (with HTTPS)
+   ✅ Global CDN (fast worldwide)
+   ✅ Secure (private S3 bucket)
+   ✅ Professional (custom domain)
+
+
+🔧 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Run status checker:
+   ./scripts/check-domain-status.sh
+   
+   See detailed guide:
+   infrastructure/DOMAIN_SETUP.md
+
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   Ready to deploy? Run:                                             ║
+║                                                                      ║
+║   ./scripts/deploy-with-domain.sh                                   ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝

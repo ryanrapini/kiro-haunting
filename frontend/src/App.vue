@@ -5,9 +5,9 @@
       <div class="container mx-auto px-6 py-4">
         <div class="flex items-center justify-between">
           <h1 class="text-4xl font-spooky text-orange-500 flex items-center gap-3">
-            <i class="pi pi-moon text-3xl animate-float"></i>
             kiro-haunting.me
           </h1>
+          <h3>It's not a haunted <span class="text-orange-500 font-semibold">house</span>... it's a haunted <span class="text-purple-400 font-semibold">home!</span></h3>
           <div v-if="isAuthenticated" class="flex items-center gap-4">
             <span class="text-gray-300">{{ userEmail }}</span>
             <Button 

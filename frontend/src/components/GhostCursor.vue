@@ -65,7 +65,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 
 // 🎃 MAGIC NUMBER: Control ghost speed here (pixels per frame)
-const MAX_SPEED = 4
+const MAX_SPEED = 3
 
 const ghostRef = ref<HTMLElement | null>(null)
 const position = ref({ x: window.innerWidth / 2, y: window.innerHeight / 2 })

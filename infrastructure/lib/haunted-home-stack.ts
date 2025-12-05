@@ -7,6 +7,8 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
@@ -63,6 +65,20 @@ export class HauntedHomeStack extends cdk.Stack {
     // Cognito User Pool
     // ========================================
 
+    // Pre-Authentication Lambda to bypass email verification
+    const preAuthLambda = new lambda.Function(this, 'PreAuthFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+        exports.handler = async (event) => {
+          // Auto-verify email for all users to bypass verification requirement
+          event.response.autoConfirmUser = true;
+          event.response.autoVerifyEmail = true;
+          return event;
+        };
+      `),
+    });
+
     const userPool = new cognito.UserPool(this, 'HauntedHomeUserPool', {
       userPoolName: 'HauntedHomeUsers',
       selfSignUpEnabled: true,
@@ -70,7 +86,7 @@ export class HauntedHomeStack extends cdk.Stack {
         email: true,
       },
       autoVerify: {
-        email: false, // Simplified for MVP
+        email: false, // No email verification required
       },
       passwordPolicy: {
         minLength: 8,
@@ -78,6 +94,10 @@ export class HauntedHomeStack extends cdk.Stack {
         requireUppercase: true,
         requireDigits: true,
         requireSymbols: false,
+      },
+      lambdaTriggers: {
+        preAuthentication: preAuthLambda,
+        preSignUp: preAuthLambda,
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -217,17 +237,24 @@ export class HauntedHomeStack extends cdk.Stack {
     });
 
     // ========================================
-    // ACM Certificate (must be in us-east-1 for CloudFront)
+    // Route 53 Hosted Zone (lookup existing)
+    // ========================================
+
+    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: 'kiro-haunting.me',
+    });
+
+    // ========================================
+    // ACM Certificate (with Route 53 DNS validation)
     // ========================================
 
     const certificate = new acm.Certificate(this, 'Certificate', {
       domainName: 'kiro-haunting.me',
-      subjectAlternativeNames: ['www.kiro-haunting.me'],
-      validation: acm.CertificateValidation.fromDns(),
+      validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
     // ========================================
-    // CloudFront Distribution
+    // CloudFront Distribution (with custom domain)
     // ========================================
 
     const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
@@ -244,7 +271,7 @@ export class HauntedHomeStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
       },
-      domainNames: ['kiro-haunting.me', 'www.kiro-haunting.me'],
+      domainNames: ['kiro-haunting.me'],
       certificate,
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -261,6 +288,16 @@ export class HauntedHomeStack extends cdk.Stack {
           ttl: cdk.Duration.minutes(5),
         },
       ],
+    });
+
+    // ========================================
+    // Route 53 A Record (point domain to CloudFront)
+    // ========================================
+
+    new route53.ARecord(this, 'AliasRecord', {
+      zone: hostedZone,
+      recordName: 'kiro-haunting.me',
+      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
     });
 
     // ========================================
@@ -298,8 +335,18 @@ export class HauntedHomeStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'FrontendUrl', {
-      value: `https://kiro-haunting.me`,
+      value: 'https://kiro-haunting.me',
       description: 'Frontend website URL',
+    });
+
+    new cdk.CfnOutput(this, 'HostedZoneId', {
+      value: hostedZone.hostedZoneId,
+      description: 'Route 53 Hosted Zone ID',
+    });
+
+    new cdk.CfnOutput(this, 'CertificateArn', {
+      value: certificate.certificateArn,
+      description: 'ACM Certificate ARN',
     });
   }
 }

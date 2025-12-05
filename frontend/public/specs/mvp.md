@@ -403,7 +403,7 @@ Return JSON array of commands.
    - Email as username
    - Password requirements: min 8 chars, uppercase, lowercase, number
    - No MFA for MVP
-   - Email verification optional for MVP
+   - No email verification required
 
 2. **Create App Client:**
    - Enable username/password auth
