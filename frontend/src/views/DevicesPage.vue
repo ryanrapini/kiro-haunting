@@ -1,0 +1,223 @@
+<template>
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-8 text-center">
+      <h2 class="text-4xl font-spooky text-purple-400 mb-2">Setup Your Devices</h2>
+      <p class="text-gray-400">Chat with our AI to add your smart home devices</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Chat Interface -->
+      <div class="lg:col-span-2">
+        <Card class="bg-zinc-900/50 border border-purple-900/50 h-[600px] flex flex-col">
+          <template #content>
+            <div class="flex-1 overflow-y-auto mb-4 space-y-4" ref="chatContainer">
+              <div 
+                v-for="(message, index) in messages" 
+                :key="index"
+                :class="[
+                  'flex gap-3',
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                ]"
+              >
+                <div 
+                  :class="[
+                    'max-w-[80%] p-4 rounded-lg',
+                    message.role === 'user' 
+                      ? 'bg-orange-500/20 border border-orange-500/50' 
+                      : 'bg-purple-900/20 border border-purple-900/50'
+                  ]"
+                >
+                  <div class="flex items-start gap-2">
+                    <i :class="[
+                      'pi text-lg',
+                      message.role === 'user' ? 'pi-user' : 'pi-sparkles'
+                    ]"></i>
+                    <p class="text-sm">{{ message.content }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="loading" class="flex justify-start">
+                <div class="bg-purple-900/20 border border-purple-900/50 p-4 rounded-lg">
+                  <i class="pi pi-spin pi-spinner"></i>
+                  <span class="ml-2 text-sm">AI is thinking...</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <InputText 
+                v-model="userMessage"
+                placeholder="Describe your device (e.g., 'I have a bedroom lamp')"
+                class="flex-1"
+                @keyup.enter="sendMessage"
+                :disabled="loading"
+              />
+              <Button 
+                icon="pi pi-send"
+                @click="sendMessage"
+                :disabled="loading || !userMessage.trim()"
+                severity="warning"
+              />
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <!-- Device List -->
+      <div>
+        <Card class="bg-zinc-900/50 border border-purple-900/50">
+          <template #title>
+            <div class="flex items-center justify-between">
+              <span class="text-lg">Your Devices</span>
+              <Tag :value="devices.length.toString()" severity="warning" />
+            </div>
+          </template>
+          
+          <template #content>
+            <div v-if="devices.length === 0" class="text-center py-8 text-gray-400">
+              <i class="pi pi-inbox text-4xl mb-3"></i>
+              <p class="text-sm">No devices yet. Start chatting to add devices!</p>
+            </div>
+
+            <div v-else class="space-y-3">
+              <div 
+                v-for="device in devices" 
+                :key="device.id"
+                class="p-3 bg-zinc-800/50 rounded-lg border border-gray-700"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <i :class="getDeviceIcon(device.type)" class="text-orange-500"></i>
+                      <span class="font-semibold">{{ device.name }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400">{{ device.type }}</p>
+                  </div>
+                  <Button 
+                    icon="pi pi-trash"
+                    text
+                    rounded
+                    severity="danger"
+                    size="small"
+                    @click="deleteDevice(device.id)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              v-if="devices.length > 0"
+              label="Start Haunting"
+              icon="pi pi-bolt"
+              class="w-full mt-4"
+              severity="warning"
+              @click="router.push('/haunting')"
+            />
+          </template>
+        </Card>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import InputText from 'primevue/inputtext'
+import Tag from 'primevue/tag'
+
+const router = useRouter()
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+interface Device {
+  id: string
+  name: string
+  type: string
+  formalName: string
+}
+
+const messages = ref<Message[]>([
+  {
+    role: 'assistant',
+    content: 'Hi! I\'m here to help you set up your devices. Tell me about a device you\'d like to add. For example: "I have a bedroom lamp" or "There\'s a living room speaker".'
+  }
+])
+
+const devices = ref<Device[]>([])
+const userMessage = ref('')
+const loading = ref(false)
+const chatContainer = ref<HTMLElement | null>(null)
+
+const getDeviceIcon = (type: string): string => {
+  const icons: Record<string, string> = {
+    light: 'pi-sun',
+    speaker: 'pi-volume-up',
+    tv: 'pi-desktop',
+    smart_plug: 'pi-bolt'
+  }
+  return `pi ${icons[type] || 'pi-circle'}`
+}
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    }
+  })
+}
+
+const sendMessage = async () => {
+  if (!userMessage.value.trim() || loading.value) return
+  
+  const message = userMessage.value
+  userMessage.value = ''
+  
+  messages.value.push({
+    role: 'user',
+    content: message
+  })
+  
+  scrollToBottom()
+  loading.value = true
+  
+  try {
+    // TODO: Call API endpoint
+    // Simulate AI response for now
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    messages.value.push({
+      role: 'assistant',
+      content: 'Great! I\'ve added that device. Would you like to add another device, or are you ready to start haunting?'
+    })
+    
+    // Simulate device creation
+    devices.value.push({
+      id: Date.now().toString(),
+      name: message,
+      type: 'light',
+      formalName: message
+    })
+    
+    scrollToBottom()
+  } catch (error) {
+    console.error('Failed to send message:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const deleteDevice = (id: string) => {
+  devices.value = devices.value.filter(d => d.id !== id)
+}
+
+onMounted(() => {
+  scrollToBottom()
+})
+</script>
