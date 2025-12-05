@@ -4,6 +4,9 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
@@ -207,17 +210,57 @@ export class HauntedHomeStack extends cdk.Stack {
     // ========================================
 
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html',
-      publicReadAccess: true,
-      blockPublicAccess: new s3.BlockPublicAccess({
-        blockPublicAcls: false,
-        blockPublicPolicy: false,
-        ignorePublicAcls: false,
-        restrictPublicBuckets: false,
-      }),
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
+    });
+
+    // ========================================
+    // ACM Certificate (must be in us-east-1 for CloudFront)
+    // ========================================
+
+    const certificate = new acm.Certificate(this, 'Certificate', {
+      domainName: 'kiro-haunting.me',
+      subjectAlternativeNames: ['www.kiro-haunting.me'],
+      validation: acm.CertificateValidation.fromDns(),
+    });
+
+    // ========================================
+    // CloudFront Distribution
+    // ========================================
+
+    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
+      comment: 'OAI for Haunted Home frontend',
+    });
+
+    frontendBucket.grantRead(originAccessIdentity);
+
+    const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultBehavior: {
+        origin: new origins.S3Origin(frontendBucket, {
+          originAccessIdentity,
+        }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      domainNames: ['kiro-haunting.me', 'www.kiro-haunting.me'],
+      certificate,
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(5),
+        },
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.minutes(5),
+        },
+      ],
     });
 
     // ========================================
@@ -244,8 +287,18 @@ export class HauntedHomeStack extends cdk.Stack {
       description: 'S3 bucket for frontend hosting',
     });
 
+    new cdk.CfnOutput(this, 'DistributionId', {
+      value: distribution.distributionId,
+      description: 'CloudFront Distribution ID',
+    });
+
+    new cdk.CfnOutput(this, 'DistributionDomainName', {
+      value: distribution.distributionDomainName,
+      description: 'CloudFront Distribution Domain Name',
+    });
+
     new cdk.CfnOutput(this, 'FrontendUrl', {
-      value: frontendBucket.bucketWebsiteUrl,
+      value: `https://kiro-haunting.me`,
       description: 'Frontend website URL',
     });
   }

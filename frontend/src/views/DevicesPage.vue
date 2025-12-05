@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-6xl mx-auto">
     <div class="mb-8 text-center">
       <h2 class="text-4xl font-spooky text-purple-400 mb-2">Setup Your Devices</h2>
       <p class="text-gray-400">Chat with our AI to add your smart home devices</p>
@@ -8,20 +8,20 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Chat Interface -->
       <div class="lg:col-span-2">
-        <Card class="bg-zinc-900/50 border border-purple-900/50 h-[600px] flex flex-col">
+        <Card class="bg-zinc-900/50 border border-purple-900/50 shadow-xl shadow-purple-900/10 h-[600px] flex flex-col">
           <template #content>
-            <div class="flex-1 overflow-y-auto mb-4 space-y-4" ref="chatContainer">
+            <div class="flex-1 overflow-y-auto mb-4 space-y-4 p-2" ref="chatContainer">
               <div 
                 v-for="(message, index) in messages" 
                 :key="index"
                 :class="[
-                  'flex gap-3',
+                  'flex gap-3 animate-fade-in',
                   message.role === 'user' ? 'justify-end' : 'justify-start'
                 ]"
               >
                 <div 
                   :class="[
-                    'max-w-[80%] p-4 rounded-lg',
+                    'max-w-[80%] p-4 rounded-lg transition-all',
                     message.role === 'user' 
                       ? 'bg-orange-500/20 border border-orange-500/50' 
                       : 'bg-purple-900/20 border border-purple-900/50'
@@ -29,23 +29,23 @@
                 >
                   <div class="flex items-start gap-2">
                     <i :class="[
-                      'pi text-lg',
-                      message.role === 'user' ? 'pi-user' : 'pi-sparkles'
+                      'pi text-lg flex-shrink-0',
+                      message.role === 'user' ? 'pi-user text-orange-400' : 'pi-sparkles text-purple-400'
                     ]"></i>
-                    <p class="text-sm">{{ message.content }}</p>
+                    <p class="text-sm text-gray-200">{{ message.content }}</p>
                   </div>
                 </div>
               </div>
 
-              <div v-if="loading" class="flex justify-start">
+              <div v-if="loading" class="flex justify-start animate-fade-in">
                 <div class="bg-purple-900/20 border border-purple-900/50 p-4 rounded-lg">
-                  <i class="pi pi-spin pi-spinner"></i>
-                  <span class="ml-2 text-sm">AI is thinking...</span>
+                  <i class="pi pi-spin pi-spinner text-purple-400"></i>
+                  <span class="ml-2 text-sm text-gray-300">AI is thinking...</span>
                 </div>
               </div>
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 p-2">
               <InputText 
                 v-model="userMessage"
                 placeholder="Describe your device (e.g., 'I have a bedroom lamp')"
@@ -58,6 +58,7 @@
                 @click="sendMessage"
                 :disabled="loading || !userMessage.trim()"
                 severity="warning"
+                :loading="loading"
               />
             </div>
           </template>
@@ -66,33 +67,33 @@
 
       <!-- Device List -->
       <div>
-        <Card class="bg-zinc-900/50 border border-purple-900/50">
+        <Card class="bg-zinc-900/50 border border-purple-900/50 shadow-xl shadow-purple-900/10 sticky top-24">
           <template #title>
             <div class="flex items-center justify-between">
-              <span class="text-lg">Your Devices</span>
+              <span class="text-lg text-white">Your Devices</span>
               <Tag :value="devices.length.toString()" severity="warning" />
             </div>
           </template>
           
           <template #content>
             <div v-if="devices.length === 0" class="text-center py-8 text-gray-400">
-              <i class="pi pi-inbox text-4xl mb-3"></i>
+              <i class="pi pi-inbox text-4xl mb-3 block"></i>
               <p class="text-sm">No devices yet. Start chatting to add devices!</p>
             </div>
 
-            <div v-else class="space-y-3">
+            <div v-else class="space-y-3 max-h-[400px] overflow-y-auto">
               <div 
                 v-for="device in devices" 
                 :key="device.id"
-                class="p-3 bg-zinc-800/50 rounded-lg border border-gray-700"
+                class="p-3 bg-zinc-800/50 rounded-lg border border-gray-700 hover:border-gray-600 transition-all"
               >
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
                       <i :class="getDeviceIcon(device.type)" class="text-orange-500"></i>
-                      <span class="font-semibold">{{ device.name }}</span>
+                      <span class="font-semibold text-white">{{ device.name }}</span>
                     </div>
-                    <p class="text-xs text-gray-400">{{ device.type }}</p>
+                    <p class="text-xs text-gray-400 capitalize">{{ device.type.replace('_', ' ') }}</p>
                   </div>
                   <Button 
                     icon="pi pi-trash"
@@ -112,6 +113,7 @@
               icon="pi pi-bolt"
               class="w-full mt-4"
               severity="warning"
+              size="large"
               @click="router.push('/haunting')"
             />
           </template>
@@ -221,3 +223,20 @@ onMounted(() => {
   scrollToBottom()
 })
 </script>
+
+<style scoped>
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+</style>

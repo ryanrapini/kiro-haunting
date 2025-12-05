@@ -1,10 +1,10 @@
 <template>
   <div class="max-w-2xl mx-auto mt-8">
-    <Card class="bg-zinc-900/50 border border-purple-900/50">
+    <Card class="bg-zinc-900/50 border border-purple-900/50 shadow-2xl shadow-purple-900/20">
       <template #title>
-        <div class="text-center">
-          <i class="pi pi-cog text-5xl text-orange-500 mb-4 animate-spin-slow"></i>
-          <h2 class="text-3xl font-spooky text-purple-400">Setup Your Haunted Home</h2>
+        <div class="text-center pt-4">
+          <i class="pi pi-cog text-5xl text-orange-500 mb-4 animate-spin-slow block"></i>
+          <h2 class="text-3xl font-spooky text-purple-400">Setup Your Smart Home</h2>
           <p class="text-gray-400 text-base font-normal mt-2">
             Choose your smart home platform to get started
           </p>
@@ -12,22 +12,22 @@
       </template>
       
       <template #content>
-        <div class="space-y-8">
+        <div class="space-y-8 p-2">
           <div>
-            <label class="block text-lg font-medium mb-4">Select Platform</label>
+            <label class="block text-lg font-medium mb-4 text-gray-200">Select Platform</label>
             <div class="grid grid-cols-2 gap-4">
               <div 
                 @click="selectedPlatform = 'alexa'"
                 :class="[
                   'p-6 border-2 rounded-lg cursor-pointer transition-all',
                   selectedPlatform === 'alexa' 
-                    ? 'border-orange-500 bg-orange-500/10' 
-                    : 'border-gray-700 hover:border-gray-600'
+                    ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20' 
+                    : 'border-gray-700 hover:border-gray-600 hover:bg-zinc-800/50'
                 ]"
               >
                 <div class="text-center">
-                  <i class="pi pi-amazon text-4xl mb-3"></i>
-                  <h3 class="text-xl font-semibold">Amazon Alexa</h3>
+                  <i class="pi pi-amazon text-4xl mb-3 block" :class="selectedPlatform === 'alexa' ? 'text-orange-500' : 'text-gray-400'"></i>
+                  <h3 class="text-xl font-semibold text-white">Amazon Alexa</h3>
                   <p class="text-sm text-gray-400 mt-2">
                     "Alexa, turn on the lights"
                   </p>
@@ -39,13 +39,13 @@
                 :class="[
                   'p-6 border-2 rounded-lg cursor-pointer transition-all',
                   selectedPlatform === 'google' 
-                    ? 'border-orange-500 bg-orange-500/10' 
-                    : 'border-gray-700 hover:border-gray-600'
+                    ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20' 
+                    : 'border-gray-700 hover:border-gray-600 hover:bg-zinc-800/50'
                 ]"
               >
                 <div class="text-center">
-                  <i class="pi pi-google text-4xl mb-3"></i>
-                  <h3 class="text-xl font-semibold">Google Home</h3>
+                  <i class="pi pi-google text-4xl mb-3 block" :class="selectedPlatform === 'google' ? 'text-orange-500' : 'text-gray-400'"></i>
+                  <h3 class="text-xl font-semibold text-white">Google Home</h3>
                   <p class="text-sm text-gray-400 mt-2">
                     "Hey Google, dim the lights"
                   </p>
@@ -56,9 +56,9 @@
 
           <div class="bg-purple-900/20 border border-purple-900/50 rounded-lg p-4">
             <div class="flex gap-3">
-              <i class="pi pi-info-circle text-purple-400 text-xl"></i>
+              <i class="pi pi-info-circle text-purple-400 text-xl flex-shrink-0"></i>
               <div>
-                <h4 class="font-semibold mb-1">Simple Mode</h4>
+                <h4 class="font-semibold text-white mb-1">Simple Mode</h4>
                 <p class="text-sm text-gray-400">
                   This MVP uses Simple Mode - the browser will speak voice commands that you can use with your voice assistant. 
                   No OAuth or direct device control required!
@@ -77,7 +77,7 @@
             iconPos="right"
             class="w-full"
             size="large"
-            :disabled="!selectedPlatform"
+            :disabled="!selectedPlatform || loading"
             :loading="loading"
             severity="warning"
             @click="saveConfig"
@@ -112,6 +112,9 @@ const saveConfig = async () => {
     // For now, just store locally
     localStorage.setItem('platform', selectedPlatform.value)
     localStorage.setItem('mode', 'simple')
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
     
     router.push('/devices')
   } catch (error: any) {

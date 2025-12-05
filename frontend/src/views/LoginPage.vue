@@ -1,17 +1,17 @@
 <template>
   <div class="max-w-md mx-auto mt-16">
-    <Card class="bg-zinc-900/50 border border-purple-900/50">
+    <Card class="bg-zinc-900/50 border border-purple-900/50 shadow-2xl shadow-purple-900/20">
       <template #title>
-        <div class="text-center">
-          <i class="pi pi-moon text-5xl text-orange-500 mb-4 animate-float"></i>
+        <div class="text-center pt-4">
+          <i class="pi pi-moon text-5xl text-orange-500 mb-4 animate-float block"></i>
           <h2 class="text-3xl font-spooky text-purple-400">Login</h2>
         </div>
       </template>
       
       <template #content>
-        <form @submit.prevent="handleLogin" class="space-y-6">
+        <form @submit.prevent="handleLogin" class="space-y-6 p-2">
           <div>
-            <label for="email" class="block text-sm font-medium mb-2">Email</label>
+            <label for="email" class="block text-sm font-medium mb-2 text-gray-200">Email</label>
             <InputText 
               id="email"
               v-model="formData.email" 
@@ -19,13 +19,14 @@
               placeholder="your@email.com"
               class="w-full"
               :invalid="!!errors.email"
+              :disabled="loading"
               required
             />
-            <small v-if="errors.email" class="text-red-400">{{ errors.email }}</small>
+            <small v-if="errors.email" class="text-red-400 block mt-1">{{ errors.email }}</small>
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium mb-2">Password</label>
+            <label for="password" class="block text-sm font-medium mb-2 text-gray-200">Password</label>
             <Password 
               id="password"
               v-model="formData.password" 
@@ -34,12 +35,13 @@
               toggleMask
               class="w-full"
               :invalid="!!errors.password"
+              :disabled="loading"
               required
             />
-            <small v-if="errors.password" class="text-red-400">{{ errors.password }}</small>
+            <small v-if="errors.password" class="text-red-400 block mt-1">{{ errors.password }}</small>
           </div>
 
-          <Message v-if="errorMessage" severity="error" :closable="false">
+          <Message v-if="errorMessage" severity="error" :closable="false" class="mb-4">
             {{ errorMessage }}
           </Message>
 
@@ -50,11 +52,12 @@
             class="w-full"
             :loading="loading"
             severity="warning"
+            size="large"
           />
 
-          <div class="text-center">
+          <div class="text-center pt-2">
             <span class="text-gray-400">Don't have an account? </span>
-            <router-link to="/register" class="text-orange-500 hover:text-orange-400">
+            <router-link to="/register" class="text-orange-500 hover:text-orange-400 font-medium transition-colors">
               Register here
             </router-link>
           </div>

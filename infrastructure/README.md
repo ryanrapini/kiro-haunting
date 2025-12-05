@@ -1,59 +1,54 @@
-# Ultra-Simple AWS Deployment
+# Haunted Home Infrastructure
 
-This is a minimal AWS infrastructure for the Haunted Home Orchestrator MVP.
+Lambda-only AWS architecture with real-time WebSocket streaming and AWS Polly voice synthesis.
 
-## What Gets Deployed
+## Quick Start
 
-- **DynamoDB**: 3 tables for user config, devices, and sessions
-- **Cognito**: User authentication (email + password)
-- **API Gateway**: REST API with placeholder Lambda
-- **S3**: Public website hosting for frontend
-- **Lambda**: Placeholder function (will be replaced with actual code)
-
-## Prerequisites
-
-1. AWS account
-2. AWS CLI configured (`aws configure`)
-3. OpenRouter API key
-
-## Deploy in 3 Steps
-
-### 1. Store OpenRouter API Key
-
-```bash
-aws ssm put-parameter \
-  --name "/haunted-home/openrouter-api-key" \
-  --value "your-openrouter-key-here" \
-  --type "SecureString"
-```
-
-### 2. Deploy Infrastructure
+### 1. Deploy Infrastructure
 
 ```bash
 cd infrastructure
 npm install
 cdk bootstrap  # First time only
-cdk deploy
+cdk deploy UltraSimpleHauntedStack
 ```
 
-Save the outputs! You'll need:
-- `UserPoolId`
-- `UserPoolClientId`
+Save the outputs:
 - `ApiEndpoint`
+- `WebSocketEndpoint`
+- `DatabaseEndpoint`
+- `DatabaseSecretArn`
+- `CommandQueueUrl`
 - `FrontendBucketName`
-- `FrontendUrl`
 
-### 3. Deploy Frontend
+### 2. Initialize Database
 
 ```bash
-cd ../frontend
+# Get database credentials
+aws secretsmanager get-secret-value --secret-id <DatabaseSecretArn>
 
-# Create .env with outputs from step 2
+# Connect and run schema
+psql -h <DatabaseEndpoint> -U postgres -d haunteddb -f database-schema.sql
+```
+
+### 3. Store OpenAI API Key
+
+```bash
+aws ssm put-parameter \
+  --name /haunted-home/openai-api-key \
+  --value "sk-..." \
+  --type SecureString
+```
+
+### 4. Deploy Frontend
+
+```bash
+cd frontend
+
+# Create .env with API endpoints
 cat > .env << EOF
 VITE_API_ENDPOINT=<ApiEndpoint>
-VITE_USER_POOL_ID=<UserPoolId>
-VITE_USER_POOL_CLIENT_ID=<UserPoolClientId>
-VITE_AWS_REGION=us-east-1
+VITE_WEBSOCKET_ENDPOINT=<WebSocketEndpoint>
 EOF
 
 npm install
@@ -61,33 +56,54 @@ npm run build
 aws s3 sync dist/ s3://<FrontendBucketName>/
 ```
 
-Visit the `FrontendUrl` from step 2!
+## Architecture
 
-## Using OpenRouter
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
 
-OpenRouter provides access to many AI models at low cost. We'll use it instead of OpenAI.
+**Key Features:**
+- Lambda-only (no ECS/ALB)
+- Real-time WebSocket streaming
+- AWS Polly voice synthesis
+- SQS message queue
+- RDS Postgres database
+- Cost: $29-45/month (or $8-24 without VPC Endpoints)
 
-**API Endpoint**: `https://openrouter.ai/api/v1`
-**Recommended Model**: `meta-llama/llama-3.1-8b-instruct:free` (free!)
+## Lambda Functions
 
-The backend will be configured to use OpenRouter's OpenAI-compatible API.
+| Function | Purpose |
+|----------|---------|
+| `haunted-auth` | User authentication |
+| `haunted-devices` | Device management + AI chat |
+| `haunted-orchestrator` | Coordinate haunting sessions |
+| `haunted-agent-lights` | Generate light commands |
+| `haunted-agent-audio` | Generate audio commands |
+| `haunted-agent-tv` | Generate TV commands |
+| `haunted-agent-plug` | Generate plug commands |
+| `haunted-websocket-handler` | WebSocket connections |
+| `haunted-command-streamer` | Stream commands to browser |
+
+## API Endpoints
+
+**REST API:**
+- `POST /auth/login`
+- `POST /auth/register`
+- `GET /devices`
+- `POST /devices`
+- `POST /devices/chat`
+- `POST /haunting/start`
+- `POST /haunting/stop`
+
+**WebSocket API:**
+- `wss://<endpoint>/prod?userId=<userId>`
 
 ## Cleanup
 
 ```bash
 cd infrastructure
-cdk destroy
+cdk destroy UltraSimpleHauntedStack
 ```
 
-This removes everything and stops all charges.
+## Documentation
 
-## Cost
-
-With OpenRouter's free models:
-- **~$0-2/month** (DynamoDB, S3, Lambda free tier)
-
-## Next Steps
-
-1. Deploy infrastructure (above)
-2. Implement Lambda functions (Task 2 in tasks.md)
-3. Build frontend components (Task 3 in tasks.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed architecture and data flow
+- [database-schema.sql](./database-schema.sql) - Database schema

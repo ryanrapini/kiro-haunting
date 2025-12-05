@@ -1,4 +1,4 @@
-# Ultra-Simple Haunted Home Architecture
+# Haunted Home Architecture
 
 ## Overview
 
@@ -42,7 +42,6 @@ Lambda-only architecture with real-time WebSocket streaming and AWS Polly for vo
            └────────┬────────┘              │   • devices              │
                     │                       │   • haunting_sessions    │
                     │                       └──────────────────────────┘
-                    │
                     ▼
            ┌─────────────────┐
            │   DynamoDB      │
@@ -281,7 +280,7 @@ ws.onmessage = (event) => {
 | Polly | 100K characters | $1.60 | $16 per 1M characters |
 | S3 + CloudFront | 10GB transfer | $1-3 | Static hosting |
 | VPC Endpoints | 3 endpoints | $21 | $7/month per endpoint |
-| **Total** | | **$29-45/month** | **Much cheaper!** |
+| **Total** | | **$29-45/month** | |
 
 ## Further Cost Optimization
 
@@ -312,43 +311,6 @@ Remove VPC Endpoints → **Total cost: $8-24/month**
 ✅ API Gateway throttling enabled  
 ✅ CORS configured  
 
-## Deployment Steps
-
-1. **Deploy CDK stack**
-   ```bash
-   cd infrastructure
-   npm install
-   cdk bootstrap
-   cdk deploy UltraSimpleHauntedStack
-   ```
-
-2. **Initialize database**
-   ```bash
-   # Get DB credentials from Secrets Manager
-   aws secretsmanager get-secret-value --secret-id <secret-arn>
-   
-   # Connect and run schema
-   psql -h <db-endpoint> -U postgres -d haunteddb -f database-schema.sql
-   ```
-
-3. **Store OpenAI API key**
-   ```bash
-   aws ssm put-parameter \
-     --name /haunted-home/openai-api-key \
-     --value "sk-..." \
-     --type SecureString
-   ```
-
-4. **Deploy Lambda functions**
-   - Build backend code
-   - Package with dependencies
-   - Update Lambda function code
-
-5. **Deploy frontend**
-   - Build React app with API endpoints
-   - Upload to S3
-   - Configure CloudFront
-
 ## Testing
 
 ### Test WebSocket Connection
@@ -366,22 +328,3 @@ ws.onerror = (error) => console.error('Error:', error);
 3. Check SQS queue for messages
 4. Verify WebSocket receives commands
 5. Confirm audio plays in browser
-
-## Advantages Over Previous Design
-
-✅ **50% cheaper** ($29-45 vs $51-83)  
-✅ **No ALB** (saves $16/month)  
-✅ **No NAT Gateway** (saves $32/month with VPC endpoints)  
-✅ **Simpler deployment** (no ECS containers)  
-✅ **Real-time streaming** (WebSocket instead of polling)  
-✅ **Built-in voice synthesis** (AWS Polly)  
-✅ **Automatic scaling** (Lambda scales to zero)  
-✅ **Easier debugging** (CloudWatch Logs for everything)  
-
-## Next Steps
-
-1. Implement Lambda function code
-2. Test WebSocket connection
-3. Test Polly voice synthesis
-4. Build frontend WebSocket client
-5. End-to-end testing
