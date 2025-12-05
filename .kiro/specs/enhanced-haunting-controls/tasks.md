@@ -32,7 +32,7 @@ This implementation plan extends the existing Haunted Home Orchestrator MVP with
   - **Property 42-45: Default prompt generation for each device type**
   - **Validates: Requirements 1.2, 2.3, 10.1-10.4**
 
-- [ ] 2. Implement orchestrator settings management
+- [x] 2. Implement orchestrator settings management
 - [x] 2.1 Create OrchestratorSettings model and service
   - Define OrchestratorSettings interface in backend/src/models/types.ts
   - Create SettingsService in backend/src/services/settingsService.ts
@@ -47,7 +47,7 @@ This implementation plan extends the existing Haunted Home Orchestrator MVP with
   - Export handlers in backend/src/index.ts
   - _Requirements: 4.1, 8.3, 8.5_
 
-- [ ] 2.3 Write property tests for settings management
+- [x] 2.3 Write property tests for settings management
   - **Property 35: Settings validation**
   - **Property 37: Invalid settings prevention**
   - **Validates: Requirements 8.3, 8.5**
